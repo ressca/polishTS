@@ -1,0 +1,112 @@
+export const DICTIONARY: Record<string, string> = {
+  // Variables
+  stała: 'const',
+  zmienna: 'let',
+  var: 'var',
+
+  // Primitives
+  liczba: 'number',
+  ciąg: 'string',
+  łańcuch: 'string',
+  logiczna: 'boolean',
+  dowolny: 'any',
+  nieznany: 'unknown',
+  nic: 'void',
+  nigdy: 'never',
+  obiekt: 'object',
+  symbol: 'symbol',
+  duża_liczca: 'bigint',
+
+  // Values
+  prawda: 'true',
+  fałsz: 'false',
+  null: 'null',
+  nieokreślony: 'undefined',
+
+  // Operators
+  i: '&&',
+  lub: '||',
+  nie: '!',
+  równa: '===',
+  różne: '!==',
+  mniejsze: '<',
+  większe: '>',
+  mniejsze_równe: '<=',
+  większe_równe: '>=',
+  przypisz: '=',
+  plus_równa: '+=',
+  minus_równa: '-=',
+  razy_równa: '*=',
+  podziel_równo: '/=',
+  modulo_równa: '%=',
+  pytajnik_kropka: '?.',
+  podwójne_pytajnik: '??',
+
+  // Control flow
+  jeżeli: 'if',
+  inaczej: 'else',
+  dla: 'for',
+  dopóki: 'while',
+  zrób: 'do',
+  przerwij: 'break',
+  kontynuuj: 'continue',
+  zwróć: 'return',
+  switch: 'switch',
+  przypadku: 'case',
+  domyślny: 'default',
+
+  // Functions
+  funkcja: 'function',
+  asynchroniczna: 'async',
+  oczekuj: 'await',
+  arrow: '=>',
+
+  // OOP
+  klasa: 'class',
+  rozszerza: 'extends',
+  implements: 'implements',
+  konstruktor: 'constructor',
+  modyfikator: 'readonly',
+  publiczny: 'public',
+  publiczne: 'public',
+  prywatny: 'private',
+  prywatne: 'private',
+  chroniony: 'protected',
+  chronione: 'protected',
+  statyczny: 'static',
+  abstrakcyjna: 'abstract',
+  new: 'new',
+  ten: 'this',
+  rodzaj: 'typeof',
+  instancja: 'instanceof',
+
+  // Types
+  interfejs: 'interface',
+  typ: 'type',
+  enumeracja: 'enum',
+  wyliczenie: 'enum',
+  importuj: 'import',
+  eksportuj: 'export',
+  domyślny_eksport: 'export default',
+  jako: 'as',
+  z: 'from',
+  narzędzie: 'keyof',
+  wybierz: 'pick',
+  pomiń: 'omit',
+  częściowy: 'partial',
+  wymagany: 'required',
+  tylko_czytelny: 'readonly',
+
+  // Exception handling
+  spróbuj: 'try',
+  złap: 'catch',
+  na_koniec: 'finally',
+  rzuć: 'throw',
+  błąd: 'Error',
+  nowy_błąd: 'new Error',
+
+  // Generics
+  ogólny: 'generic',
+  rozszerz: 'extends',
+  implementuj: 'implements',
+};

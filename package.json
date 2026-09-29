@@ -1,0 +1,32 @@
+{
+  "name": "polishts",
+  "version": "0.1.0",
+  "description": "Polish TypeScript transpiler from plts to ts",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "files": ["dist", "README.md"],
+  "bin": {
+    "plts": "./dist/cli.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsx src/cli.ts",
+    "start": "node dist/cli.js",
+    "test": "tsx --test test/*.test.ts",
+    "prepack": "npm run build"
+  }, 
+  "keywords": ["polish", "typescript", "transpiler"],
+  "author": "Mateusz Cichosz",
+  "license": "MIT",
+  "dependencies": {
+    "@babel/generator": "^7.23.6",
+    "@babel/parser": "^7.23.6",
+    "@babel/types": "^7.23.6"
+  },
+  "devDependencies": {
+    "@types/node": "^26.4.1",
+    "tsx": "^4.23.13",
+    "typescript": "^7.0.2"
+  }
+}

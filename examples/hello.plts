@@ -1,0 +1,6 @@
+eksportuj funkcja powitaj(imie: ciąg): ciąg {
+  zwróć "Cześć, " + imie;
+}
+
+stała komunikat: ciąg przypisz powitaj(" świecie");
+console.log(komunikat);
