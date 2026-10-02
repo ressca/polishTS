@@ -1,0 +1,33 @@
+interfejs Zadanie {
+  id: liczba;
+  tytuł: ciąg;
+  ukończone: logiczna;
+}
+
+klasa ListaZadań implementuj Zadanie {
+  publiczny id: liczba;
+  publiczny tytuł: ciąg;
+  publiczny ukończone: logiczna;
+
+  konstruktor(id: liczba, tytuł: ciąg) {
+    ten.id = id;
+    ten.tytuł = tytuł;
+    ten.ukończone = fałsz;
+  }
+
+  publiczny zakończ(): nic {
+    ten.ukończone = prawda;
+  }
+}
+
+eksportuj funkcja listaAktywnych(zadania: Zadanie[]): Zadanie[] {
+  stała aktywne: Zadanie[] = [];
+
+  dla (stała zadanie of zadania) {
+    jeżeli (nie zadanie.ukończone) {
+      aktywne.push(zadanie);
+    }
+  }
+
+  zwróć aktywne;
+}

@@ -1,0 +1,14 @@
+asynchroniczna funkcja pobierzTekst(url: ciąg): Promise<ciąg> {
+  spróbuj {
+    stała odpowiedź = await fetch(url);
+
+    jeżeli (!odpowiedź.ok) {
+      rzuć nowy_błąd("Żądanie nie powiodło się: " + odpowiedź.status);
+    }
+
+    zwróć await odpowiedź.text();
+  } złap (problem) {
+    console.error("Nie udało się pobrać tekstu", problem);
+    rzuć problem;
+  }
+}
