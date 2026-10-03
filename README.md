@@ -170,3 +170,29 @@ substitutions is undecided.
 
 `npm test` runs the tests and `npm run build` emits the package files to `dist`.
 `npm run prepack` builds before packing.
+
+## CI and npm publishing
+
+GitHub Actions runs the build, tests, package smoke test, and `npm pack
+--dry-run` for pull requests targeting `dev` or `main`, and for pushes to those
+branches. The Node matrix tests representative supported majors from the
+declared `>=18` range. A push to `main` publishes the package after every matrix
+job passes.
+
+Publishing uses npm trusted publishing (GitHub Actions OIDC), so no npm token
+needs to be stored in GitHub. To enable it:
+
+1. If `polishts` has not been published yet, create its first release from your
+   machine: run `npm login`, choose a unique version in `package.json`, run
+   `npm ci && npm run build`, then run `npm publish --access public`.
+2. On npmjs.com, open the `polishts` package settings and add a GitHub Actions
+   trusted publisher. Set the owner to `ressca`, repository to `polishTS`, and
+   workflow filename to `ci.yml`. Allow direct `npm publish` for this
+   publisher.
+3. Before each release, bump `version` in `package.json` (and
+   `package-lock.json`) and merge the change to `main`. The `main` workflow
+   publishes that version after CI succeeds; npm will reject a version that
+   has already been published.
+
+The publish workflow uses Node 24 because npm trusted publishing requires Node
+22.14 or newer and npm 11.5.1 or newer.
