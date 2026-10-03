@@ -19,6 +19,8 @@ Install with `npm install polishts` (or globally with
 ```sh
 plts program.plts                 # writes ./program.ts
 plts program.plts out/result.ts   # writes the given path
+plts program.plts --out out/result.ts
+plts program.plts --print         # generated TypeScript on stdout
 cat program.plts | plts --stdin   # generated TypeScript on stdout
 plts --help
 ```
@@ -27,17 +29,19 @@ The intended file workflow is to write Polish-keyword source in a `.plts` file
 and run `plts` to create TypeScript in a `.ts` file. For example, save the
 source as `program.plts`, run `plts program.plts`, then inspect or use the
 generated `program.ts` with your TypeScript tooling. PolishTS itself does not
-type-check or execute the result. Use `plts program.plts output.ts` to choose a
-different output path, or `plts --stdin` when piping source instead of using a
-file.
+type-check or execute the result. Use `plts program.plts output.ts` or
+`plts program.plts --out output.ts` to choose a different output path. By
+default, output is written to the current working directory using the input
+basename, even when the input is elsewhere. Use `--print` to send generated
+code to stdout instead of writing a file, or `plts --stdin` when piping source.
 
 Without `--stdin`, the first argument is the input file and the optional second
 argument is the output file. The default output is the input basename with a
 `.ts` extension in the current directory. Input and output paths are resolved
 from the current directory. The CLI prints a success message for file output;
-stdin mode prints only generated code to stdout. Errors (including missing input,
-unreadable files, invalid source, and output write failures) are reported to
-stderr and exit with status 1.
+`--print` and stdin mode print only generated code to stdout. Errors (including
+missing input, unreadable files, invalid source, and output write failures) are
+reported to stderr and exit with status 1.
 
 Library callers can use:
 

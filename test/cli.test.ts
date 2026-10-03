@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import * as path from 'node:path';
 import { describe, it } from 'node:test';
@@ -14,6 +14,15 @@ function run(args: string[], cwd: string, input?: string) {
 }
 
 describe('CLI', () => {
+  it('builds an executable CLI entry point', () => {
+    if (process.platform !== 'win32') {
+      assert.notEqual(statSync(cli).mode & 0o111, 0);
+      const result = spawnSync(cli, ['--help'], { encoding: 'utf8' });
+      assert.equal(result.status, 0, result.stderr);
+      assert.match(result.stdout, /Usage:/);
+    }
+  });
+
   it('prints help successfully', () => {
     const dir = mkdtempSync(path.join(tmpdir(), 'polishts-'));
     try {
@@ -43,6 +52,33 @@ describe('CLI', () => {
       assert.equal(result.stderr, '');
       assert.match(result.stdout, /Transpiled:/);
       assert.equal(readFileSync(path.join(dir, 'out.ts'), 'utf8'), 'const wynik = 42;');
+    } finally { rmSync(dir, { recursive: true, force: true }); }
+  });
+
+  it('writes the default output in the current directory', () => {
+    const dir = mkdtempSync(path.join(tmpdir(), 'polishts-'));
+    try {
+      const nested = path.join(dir, 'source');
+      mkdirSync(nested);
+      writeFileSync(path.join(nested, 'input.plts'), 'stała wynik przypisz 42');
+      const result = run(['source/input.plts'], dir);
+      assert.equal(result.status, 0);
+      assert.equal(readFileSync(path.join(dir, 'input.ts'), 'utf8'), 'const wynik = 42;');
+    } finally { rmSync(dir, { recursive: true, force: true }); }
+  });
+
+  it('supports --out and --print for file input', () => {
+    const dir = mkdtempSync(path.join(tmpdir(), 'polishts-'));
+    try {
+      writeFileSync(path.join(dir, 'input.plts'), 'stała wynik przypisz 42');
+      const written = run(['input.plts', '--out', 'chosen.ts'], dir);
+      assert.equal(written.status, 0);
+      assert.equal(readFileSync(path.join(dir, 'chosen.ts'), 'utf8'), 'const wynik = 42;');
+
+      const printed = run(['input.plts', '--print'], dir);
+      assert.equal(printed.status, 0);
+      assert.equal(printed.stdout, 'const wynik = 42;\n');
+      assert.equal(printed.stderr, '');
     } finally { rmSync(dir, { recursive: true, force: true }); }
   });
 

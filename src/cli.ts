@@ -9,15 +9,21 @@ Polish TypeScript Transpiler (plts)
 
 Usage:
   plts <input> [output]
+  plts <input> --out <output>
+  plts <input> --print
   plts --stdin
 
 Options:
   --stdin   Read from standard input
+  --out     Write to the given output path (defaults to the input basename in the current directory)
+  --print   Write generated code to stdout instead of a file
   --help    Show this help message
 
 Examples:
   plts program.plts          Write program.ts in the current directory
   plts program.plts out.ts   Write to out.ts in the current directory
+  plts program.plts --out out.ts
+  plts program.plts --print
   plts program.plts dist/out.ts  Write to dist/out.ts
   plts --stdin < program.plts
 `);
@@ -47,7 +53,48 @@ function main(): void {
     return;
   }
 
-  if (args.includes('--stdin')) {
+  const stdinMode = args.includes('--stdin');
+  const printMode = args.includes('--print');
+  let outputOption: string | undefined;
+  const positional: string[] = [];
+  for (let i = 0; i < args.length; i++) {
+    const arg = args[i]!;
+    if (arg === '--stdin' || arg === '--print') continue;
+    if (arg === '--out') {
+      const value = args[++i];
+      if (!value || value.startsWith('--')) {
+        console.error('Error: --out requires an output path');
+        process.exitCode = 1;
+        return;
+      }
+      if (outputOption !== undefined) {
+        console.error('Error: --out may be specified only once');
+        process.exitCode = 1;
+        return;
+      }
+      outputOption = value;
+      continue;
+    }
+    if (arg.startsWith('-')) {
+      console.error(`Error: unknown option: ${arg}`);
+      process.exitCode = 1;
+      return;
+    }
+    positional.push(arg);
+  }
+
+  if (stdinMode && (positional.length || outputOption || printMode)) {
+    console.error('Error: --stdin cannot be combined with an input file, --out, or --print');
+    process.exitCode = 1;
+    return;
+  }
+  if (printMode && (outputOption || positional.length > 1)) {
+    console.error('Error: --print cannot be combined with an output path');
+    process.exitCode = 1;
+    return;
+  }
+
+  if (stdinMode) {
     let input = '';
     process.stdin.setEncoding('utf8');
     process.stdin.on('data', (chunk: string) => { input += chunk; });
@@ -62,7 +109,7 @@ function main(): void {
     return;
   }
 
-  const inputFile = args[0];
+  const inputFile = positional[0];
   if (!inputFile) {
     console.error('Error: missing input file (use --stdin to read standard input)');
     process.exitCode = 1;
@@ -74,7 +121,22 @@ function main(): void {
     const source = fs.readFileSync(inputPath, 'utf8');
     const output = transpile(source);
     const defaultOutputName = `${path.basename(inputFile, path.extname(inputFile))}.ts`;
-    const outputPath = path.resolve(args[1] ?? defaultOutputName);
+    const legacyOutput = positional[1];
+    if (legacyOutput && outputOption) {
+      console.error('Error: specify the output path either positionally or with --out, not both');
+      process.exitCode = 1;
+      return;
+    }
+    if (positional.length > 2) {
+      console.error('Error: too many arguments');
+      process.exitCode = 1;
+      return;
+    }
+    if (printMode) {
+      process.stdout.write(`${output}\n`);
+      return;
+    }
+    const outputPath = path.resolve(outputOption ?? legacyOutput ?? defaultOutputName);
     fs.writeFileSync(outputPath, output, 'utf8');
     console.log(`Transpiled: ${inputFile} -> ${outputPath}`);
   } catch (error) {
