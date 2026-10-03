@@ -1,10 +1,17 @@
 {
   "name": "polishts",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "description": "Polish TypeScript transpiler from plts to ts",
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/ressca/polishTS.git"
+  },
+  "engines": {
+    "node": ">=18"
+  },
   "files": ["dist", "README.md"],
   "bin": {
     "plts": "./dist/cli.js"
@@ -14,6 +21,7 @@
     "dev": "tsx src/cli.ts",
     "start": "node dist/cli.js",
     "test": "tsx --test test/*.test.ts",
+    "package:smoke": "node scripts/package-smoke.mjs",
     "prepack": "npm run build"
   }, 
   "keywords": ["polish", "typescript", "transpiler"],
