@@ -35,21 +35,31 @@ Without `--stdin`, the first argument is the input file and the optional second
 argument is the output file. The default output is the input basename with a
 `.ts` extension in the current directory. Input and output paths are resolved
 from the current directory. The CLI prints a success message for file output;
-stdin mode prints only generated code. Missing input arguments and missing input
-files exit with status 1. Parse and file errors are not caught by the CLI.
+stdin mode prints only generated code to stdout. Errors (including missing input,
+unreadable files, invalid source, and output write failures) are reported to
+stderr and exit with status 1.
 
 Library callers can use:
 
 ```ts
-import { transpile } from 'polishts';
+import { transpile, TranspileError } from 'polishts';
 
-const { code, ast } = transpile('stała wynik: liczba przypisz 42');
-// code: "const wynik: number = 42;"
-// ast: Babel Program
+const code = transpile('stała wynik: liczba przypisz 42');
+// "const wynik: number = 42;"
+
+try {
+  transpile('stała =');
+} catch (error) {
+  if (error instanceof TranspileError) {
+    console.error(error.message, error.location); // location is present when Babel provides one
+  }
+}
 ```
 
-`transpile` returns generated TypeScript and its Babel `Program` AST. Invalid
-translated syntax throws a Babel parse error.
+`transpile` returns generated TypeScript as a string. Invalid translated syntax
+throws `TranspileError`, with `kind` (`parse` or `transform`), a clear message,
+optional one-based `location` (`line` and `column`), and the original parser
+failure available as `cause`. The Babel AST remains an implementation detail.
 
 ## Examples
 
