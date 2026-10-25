@@ -30,6 +30,43 @@ describe('Polish TypeScript transpiler', () => {
     assert.match(code, /const tekst/);
   });
 
+  it('preserves keyword-like names in properties, parameters, and type names', () => {
+    const code = transpile(`type prawda = { nie: string; };
+function prawdaTest(prawda: boolean, wartosc: prawda) {
+  return wartosc.nie;
+}`);
+    assert.match(code, /type prawda =/);
+    assert.match(code, /function prawdaTest\(prawda: boolean/);
+    assert.match(code, /wartosc\.nie/);
+  });
+
+  it('translates operators while preserving names in objects and imports', () => {
+    const code = transpile(`importuj { useState } z "react";
+const obiekt = { prawda: 1, nie: 2 };
+const wynik = obiekt.prawda i nie fałsz;`);
+    assert.match(code, /import \{ useState \} from "react"/);
+    assert.match(code, /prawda: 1/);
+    assert.match(code, /nie: 2/);
+    assert.match(code, /obiekt\.prawda && !false/);
+  });
+
+  it('protects escaped strings, template literals, regexes, and comments', () => {
+    const code = transpile('const tekst = "stała \\\" prawda"; // stała\nconst wzorzec = /stała\\/prawda/i;\nconst szablon = `stała ${prawda}`;');
+    assert.match(code, /"stała \\\" prawda"/);
+    assert.match(code, /\/stała\\\/prawda\/i/);
+    assert.ok(code.includes('`stała ${prawda}`'));
+    assert.match(code, /\/\/ stała/);
+  });
+
+  it('reports parser positions in original Polish source after token expansion', () => {
+    assert.throws(() => transpile('stała wartość: liczba = 1;\njeżeli ('), (error: unknown) => {
+      assert.ok(error instanceof TranspileError);
+      assert.equal(error.location?.line, 2);
+      assert.ok((error.location?.column ?? 0) > 0);
+      return true;
+    });
+  });
+
   it('translates dictionary entries only when the whole identifier matches', () => {
     const code = transpile('const stalaNazwa = 1;');
 

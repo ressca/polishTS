@@ -1,8 +1,9 @@
-import { parse } from './parser.js';
+import { LANGUAGE_VERSION, parseLanguage } from './language-parser.js';
 import { generateCode } from './generator.js';
 import { TranspileError } from './errors.js';
 
 export { TranspileError } from './errors.js';
+export { LANGUAGE_VERSION };
 
 function wrapFailure(cause: unknown, kind: 'parse' | 'transform'): TranspileError {
   const candidate = cause as { message?: string; loc?: { line?: number; column?: number } };
@@ -18,7 +19,7 @@ function wrapFailure(cause: unknown, kind: 'parse' | 'transform'): TranspileErro
 export function transpile(source: string): string {
   let ast;
   try {
-    ast = parse(source);
+    ast = parseLanguage(source);
   } catch (cause) {
     if (cause instanceof TranspileError) throw cause;
     throw wrapFailure(cause, 'parse');
