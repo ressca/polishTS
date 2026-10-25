@@ -1,9 +1,16 @@
 # PolishTS
 
 PolishTS (`polishts`) translates Polish-keyword, TypeScript-like source (`.plts`)
-into **TypeScript** (`.ts`). It token-replaces selected whole words, parses the
-result with Babel's TypeScript and legacy-decorator plugins, then prints the
-AST. It does not compile or emit JavaScript.
+into **TypeScript** (`.ts`). It lexes the source, translates recognized Polish
+syntax in context, parses the result with Babel's TypeScript and legacy-decorator
+plugins, then prints the AST. It does not compile or emit JavaScript.
+
+The current language contract is version **0.1** (`LANGUAGE_SPEC.md`). Unknown
+TypeScript syntax is passed through unchanged when Babel accepts it; unsupported
+or invalid syntax produces a parse error. Source locations refer to the original
+`.plts` input. The translator protects comments, quoted strings, template
+literals, and regular-expression literals, and uses syntactic context for
+declarations, operators, and type names. JSX/TSX is not enabled yet.
 
 ## Requirements and use
 
