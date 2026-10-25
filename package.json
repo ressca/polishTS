@@ -15,8 +15,13 @@
   "files": [
     "dist",
     "README.md",
+    "README.pl.md",
     "LANGUAGE_SPEC.md",
+    "LANGUAGE_SPEC.pl.md",
     "CHANGELOG.md",
+    "CHANGELOG.pl.md",
+    "docs/RELEASING.md",
+    "docs/RELEASING.pl.md",
     "examples/hello.plts",
     "examples/retry.plts",
     "examples/tasks.plts",

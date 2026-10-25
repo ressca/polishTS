@@ -1,137 +1,137 @@
 # PolishTS
 
-PolishTS (`polishts`) translates Polish-keyword, TypeScript-like source (`.plts`)
-into **TypeScript** (`.ts`). It lexes the source, translates recognized Polish
-syntax in context, parses the result with Babel's TypeScript and legacy-decorator
-plugins, then prints the AST. It does not compile or emit JavaScript.
+**PolishTS** is a source-to-source translator for a Polish-keyword subset of TypeScript. It reads `.plts` files and emits `.ts` files. In TSX mode it reads `.pltsx` and emits `.tsx`. It does not emit JavaScript, type-check programs, or replace `tsc`, React, or a bundler.
 
-The current language contract is version **0.3** (`LANGUAGE_SPEC.md`). Unknown
-TypeScript syntax is passed through unchanged when Babel accepts it; unsupported
-or invalid syntax produces a parse error. Source locations refer to the original
-`.plts` input. The translator protects comments, quoted strings, template
-literals, and regular-expression literals, and uses syntactic context for
-declarations, operators, and type names. TSX parsing is enabled explicitly or
-automatically for `.pltsx` inputs.
+The current language contract is **0.3** (`LANGUAGE_SPEC.md`; Polish translation: [`LANGUAGE_SPEC.pl.md`](LANGUAGE_SPEC.pl.md)). This release uses a custom Unicode-aware lexer and context-sensitive token translator, Babel's TypeScript parser, and Babel's code generator. Parser errors are mapped back to positions in the original source. The translator is not a full Polish grammar or a TypeScript AST-to-AST translator; see the documented limitations before adopting it for a large codebase.
 
-Library callers may pin a compatible `@babel/parser` release by passing a
-`parser` adapter to `transpile(source, { parser })`; the adapter supplies its
-version label and the parser's `parse` function. The bundled parser remains the
-default. Parser grammar follows the selected Babel release, while generated
-output can be checked with the TypeScript compiler version used by the project.
+- Polish documentation: [`README.pl.md`](README.pl.md)
+- Language and dictionary contract: [`LANGUAGE_SPEC.md`](LANGUAGE_SPEC.md)
+- Release notes: [`CHANGELOG.md`](CHANGELOG.md)
+- Release procedure: [`docs/RELEASING.md`](docs/RELEASING.md)
 
-## Requirements and use
+## Requirements
 
-Supported runtime range: **Node.js 18 and newer (`>=18`)**, as declared by the
-package metadata. CI checks Node 18, 20, 22, 24, and 26.
+- Node.js `>=18` for the `polishts` package and CLI.
+- The React/Vite starter uses Vite 8 and therefore needs Node.js 20.19+ or 22.12+.
+- The parser accepts the TypeScript syntax supported by the resolved `@babel/parser` version. Babel parser compatibility is not the same as TypeScript compiler compatibility; use `tsc` to type-check generated files.
 
-Install with `npm install polishts` (or globally with
-`npm install --global polishts`). Then:
+## Install and use the CLI
 
 ```sh
-plts program.plts                 # writes ./program.ts
-plts program.plts out/result.ts   # writes the given path
-plts program.plts --out out/result.ts
-plts program.plts --print         # generated TypeScript on stdout
-cat program.plts | plts --stdin   # generated TypeScript on stdout
+npm install polishts
+
+plts src/program.plts                 # writes ./program.ts
+plts src/program.plts --out out.ts    # writes the selected output path
+plts src/program.plts --print         # writes TypeScript to stdout
+cat src/program.plts | plts --stdin   # reads source from stdin
 plts --help
 ```
 
-### React / TSX
-
-Use `.pltsx` for PolishTS files containing JSX. The extension enables TSX parsing
-and selects `.tsx` as the default output. For other input names, pass `--tsx`;
-library callers use `transpile(source, { jsx: true })`. PolishTS preserves JSX
-for TypeScript to handle: `jsx: "react-jsx"`, `"react"`, and `"preserve"` remain
-project choices in `tsconfig.json`.
-
-The runnable [Vite + React example](examples/react-vite/) includes a `.pltsx`
-component, its generated `.tsx` counterpart, and scripts that translate before
-development, type checking, and production builds:
+The default output is written to the current working directory, using the input basename. `.pltsx` automatically enables JSX parsing and selects a `.tsx` output. Use `--tsx` to enable the same mode for another input filename:
 
 ```sh
-cd examples/react-vite
-npm install
-npm run dev
-npm run build
+plts src/App.pltsx                     # writes ./App.tsx
+plts src/App.plts --tsx --out App.tsx
 ```
 
-Its `tsconfig.json` uses `"jsx": "react-jsx"` and `"moduleResolution": "Bundler"`;
-the generated `src/App.tsx` is included alongside the handwritten TSX entry
-point. Set `jsx` to `"react"` or `"preserve"` if that matches an existing
-project; PolishTS leaves the JSX syntax in place for the selected TypeScript
-toolchain.
+`--stdin` and `--print` write generated code to stdout. File mode reports the output path. Errors are written to stderr and return a non-zero exit status.
 
-The example pins exact React, Vite, TypeScript, plugin, and React type package
-versions in its manifest.
-Vite 8 requires Node.js 20.19+ or 22.12+; see the [Vite compatibility note](https://www.npmjs.com/package/create-vite).
-
-The intended file workflow is to write Polish-keyword source in a `.plts` file
-and run `plts` to create TypeScript in a `.ts` file. For example, save the
-source as `program.plts`, run `plts program.plts`, then inspect or use the
-generated `program.ts` with your TypeScript tooling. PolishTS itself does not
-type-check or execute the result. Use `plts program.plts output.ts` or
-`plts program.plts --out output.ts` to choose a different output path. By
-default, output is written to the current working directory using the input
-basename, even when the input is elsewhere. Use `--print` to send generated
-code to stdout instead of writing a file, or `plts --stdin` when piping source.
-
-Without `--stdin`, the first argument is the input file and the optional second
-argument is the output file. The default output is the input basename with a
-`.ts` extension in the current directory. Input and output paths are resolved
-from the current directory. The CLI prints a success message for file output;
-`--print` and stdin mode print only generated code to stdout. Errors (including
-missing input, unreadable files, invalid source, and output write failures) are
-reported to stderr and exit with status 1.
-
-Library callers can use:
+## Use the library
 
 ```ts
-import { transpile, TranspileError } from 'polishts';
+import { transpile, TranspileError, LANGUAGE_VERSION } from 'polishts';
 
-const code = transpile('stała wynik: liczba przypisz 42');
-// "const wynik: number = 42;"
+console.log(LANGUAGE_VERSION); // "0.3"
+const output = transpile('stała wynik: liczba przypisz 42');
+// const wynik: number = 42;
+
+const tsx = transpile(
+  'eksportuj funkcja App() { zwróć <h1>Cześć</h1>; }',
+  { jsx: true },
+);
 
 try {
   transpile('stała =');
 } catch (error) {
   if (error instanceof TranspileError) {
-    console.error(error.message, error.location); // location is present when Babel provides one
+    console.error(error.kind, error.location, error.message);
   }
 }
 ```
 
-`transpile` returns generated TypeScript as a string. Invalid translated syntax
-throws `TranspileError`, with `kind` (`parse` or `transform`), a clear message,
-optional one-based `location` (`line` and `column`), and the original parser
-failure available as `cause`. The Babel AST remains an implementation detail.
+`transpile(source, options?)` returns a string. Options currently are:
 
-## Examples
+- `jsx?: boolean` — enable JSX parsing; it is `false` by default.
+- `parser?: ParserAdapter` — provide a compatible parser with a `version` label and a `parse` function. The label is informational; PolishTS does not verify that the parser matches a particular TypeScript release.
 
-The [`examples`](examples/) directory contains `.plts` source files:
+`TranspileError.kind` is `parse` or `transform`. `location`, when available, uses one-based line and column coordinates in the original source. Babel's AST is an implementation detail and is not returned.
 
-- [`hello.plts`](examples/hello.plts): a typed function and call.
-- [`tasks.plts`](examples/tasks.plts): an interface, implementing class,
-  method, and loop.
-- [`retry.plts`](examples/retry.plts): async/await and try/catch error handling.
+## Dictionary at a glance
 
-Run one with `plts examples/tasks.plts`; the CLI writes `tasks.ts` in the
-current directory. The generated TypeScript for each example is the result of
-that command.
+The table lists every entry currently present in the implementation dictionary. An entry is a candidate translation, not an unconditional textual replacement: the lexer and translator apply contextual rules to selected categories. In particular, the single-letter conjunction `i` and the module word `z` have special heuristics. Names in declaration, property, parameter, import-alias, and JSX positions are intended to remain unchanged; the implementation is heuristic, so check [`LANGUAGE_SPEC.md`](LANGUAGE_SPEC.md) for known boundaries.
 
-## Language currently recognized
+| Polish spelling | TypeScript spelling | Notes |
+| --- | --- | --- |
+| `stała` | `const` | Variable declaration |
+| `zmienna` | `let` | Variable declaration |
+| `var` | `var` | Accepted unchanged |
+| `liczba` | `number` | Primitive type position |
+| `ciąg`, `łańcuch` | `string` | Primitive type position |
+| `logiczna` | `boolean` | Primitive type position |
+| `dowolny` | `any` | Primitive type position |
+| `nieznany` | `unknown` | Primitive type position |
+| `nic` | `void` | Primitive type position |
+| `nigdy` | `never` | Primitive type position |
+| `obiekt` | `object` | Primitive type position |
+| `symbol` | `symbol` | Accepted unchanged |
+| `duża_liczba` | `bigint` | Primitive type position |
+| `prawda`, `fałsz` | `true`, `false` | Boolean literal position |
+| `nieokreślony` | `undefined` | Value position |
+| `i`, `lub`, `nie` | `&&`, `||`, `!` | Logical operator/value positions; `i` is heuristic |
+| `równa`, `różne` | `===`, `!==` | Comparison operator positions |
+| `mniejsze`, `większe` | `<`, `>` | Comparison operator positions |
+| `mniejsze_równe`, `większe_równe` | `<=`, `>=` | Comparison operator positions |
+| `przypisz` | `=` | Assignment |
+| `plus_równa`, `minus_równa`, `razy_równa` | `+=`, `-=`, `*=` | Compound assignment |
+| `podziel_równo`, `modulo_równa` | `/=`, `%=` | Compound assignment |
+| `pytajnik_kropka`, `podwójne_pytajnik` | `?.`, `??` | Optional chaining and nullish coalescing |
+| `jeżeli`, `inaczej` | `if`, `else` | Conditional statements |
+| `dla`, `dopóki`, `zrób` | `for`, `while`, `do` | Loops |
+| `przerwij`, `kontynuuj`, `zwróć` | `break`, `continue`, `return` | Control flow |
+| `przypadku`, `domyślny` | `case`, `default` | `domyślny` is recognized in a `default:`-like position |
+| `funkcja`, `asynchroniczna`, `oczekuj` | `function`, `async`, `await` | Function syntax |
+| `klasa`, `rozszerza`, `implementuj` | `class`, `extends`, `implements` | Class syntax |
+| `konstruktor` | `constructor` | Class member |
+| `modyfikator`, `tylko_czytelny` | `readonly` | Modifier |
+| `publiczny`, `publiczne` | `public` | Modifier |
+| `prywatny`, `prywatne` | `private` | Modifier |
+| `chroniony`, `chronione` | `protected` | Modifier |
+| `statyczny`, `abstrakcyjna` | `static`, `abstract` | Class modifiers |
+| `ten`, `rodzaj`, `instancja` | `this`, `typeof`, `instanceof` | Candidate token translations |
+| `interfejs`, `typ` | `interface`, `type` | Declarations |
+| `enumeracja`, `wyliczenie` | `enum` | Two aliases |
+| `importuj`, `eksportuj` | `import`, `export` | Module declarations |
+| `domyślny_eksport` | `export default` | Default export declaration |
+| `jako` | `as` | Alias/type assertion positions |
+| `z` | `from` | Recognized heuristically in import/export module clauses |
+| `narzędzie`, `klucze` | `keyof` | Type operator positions |
+| `spełnia` | `satisfies` | TypeScript `satisfies` operator |
+| `spróbuj`, `złap`, `na_koniec`, `rzuć` | `try`, `catch`, `finally`, `throw` | Exception handling |
 
-The mappings below apply to an entire identifier, and matching is
-case-sensitive. Unlisted TypeScript/JavaScript syntax can be written directly.
-For example:
+Standard TypeScript forms such as `new`, `null`, `switch`, `as`, `implements`, `from`, `extends`, and `=>` can be written in English and are not Polish dictionary aliases. The current dictionary does **not** include proposed utility-type translations such as `wybierz` → `Pick` or `ogólny` → `generic`.
+
+## Example: `.plts` to `.ts`
+
+Input:
 
 ```ts
-// program.plts
+// greeting.plts
 eksportuj funkcja powitaj(imie: ciąg): ciąg {
   zwróć "Cześć, " + imie;
 }
 ```
 
-Generated TypeScript:
+Generated TypeScript (formatting may vary with Babel):
 
 ```ts
 export function powitaj(imie: string): string {
@@ -139,90 +139,60 @@ export function powitaj(imie: string): string {
 }
 ```
 
-A declaration and type annotation:
+## React and TSX
 
-```ts
-// values.plts
-stała wynik: liczba przypisz 42;
-```
+Use ordinary JSX tags, React props, and hook names. PolishTS does not translate HTML tag names, component names, prop names, hook APIs, JSX text, or quoted attribute values. Code inside JSX expression braces is PolishTS/TypeScript code and is passed through the same keyword translator.
 
-```ts
-// generated TypeScript
-const wynik: number = 42;
-```
+```tsx
+// App.pltsx
+typ Props = { imię: ciąg };
 
-Control flow and operators are substitutions too:
-
-```ts
-// program.plts
-jeżeli (prawda i nie fałsz) {
-  stała wynik: liczba przypisz 1;
-} inaczej {
-  stała wynik: liczba przypisz 0;
+eksportuj funkcja Powitanie({ imię }: Props) {
+  zwróć <h1>Cześć, {imię}!</h1>;
 }
 ```
 
-```ts
-// generated TypeScript
-if (true && !false) {
-  const wynik: number = 1;
-} else {
-  const wynik: number = 0;
-}
+The checked-in [React + Vite starter](examples/react-vite/) demonstrates a runnable project. From a repository checkout:
+
+```sh
+cd examples/react-vite
+npm ci
+npm run dev       # translate .pltsx, then start Vite
+npm run typecheck # translate, then run tsc --noEmit
+npm run build     # translate, type-check, then create a Vite production build
 ```
 
-The complete stable dictionary decisions and their contextual rules are listed
-in [`LANGUAGE_SPEC.md`](LANGUAGE_SPEC.md). The implemented core mappings include:
+The starter uses TypeScript's `jsx: "react-jsx"`. PolishTS preserves JSX syntax; the project's TypeScript/Vite configuration controls the JSX runtime. The output is not converted to `React.createElement` by PolishTS.
 
-| Area | Mappings |
-| --- | --- |
-| Deklaracje i typy | `stała` → `const`; `zmienna` → `let`; `liczba` → `number`; `ciąg`, `łańcuch` → `string`; `logiczna` → `boolean`; `dowolny`, `nieznany`, `nic`, `nigdy`, `obiekt`, `symbol`, `duża_liczba` → odpowiadające im typy TypeScript |
-| Wartości i operatory | `prawda`, `fałsz`, `nieokreślony`; `i`, `lub`, `nie`; `równa`, `różne`, `mniejsze`, `większe`, `mniejsze_równe`, `większe_równe`; `przypisz` i aliasy przypisań; `pytajnik_kropka`, `podwójne_pytajnik` |
-| Sterowanie przepływem | `jeżeli`, `inaczej`, `dla`, `dopóki`, `zrób`, `przerwij`, `kontynuuj`, `zwróć`, `przypadku`, `domyślny` |
-| Funkcje, klasy i moduły | `funkcja`, `asynchroniczna`, `oczekuj`, `klasa`, `rozszerza`, `implementuj`, `konstruktor`, modyfikatory klas, `interfejs`, `typ`, `enumeracja`, `importuj`, `eksportuj`, `domyślny_eksport`, `jako`, kontekstowe `z`, `narzędzie`/`klucze`, `spełnia` |
+## How translation works
 
-Nieobsługiwane propozycje oraz zwykłe angielskie konstrukcje TS opisuje tabela
-decyzji w specyfikacji; nie są one częścią słownika tylko dlatego, że przypominają
-alias składni.
+1. The lexer scans Unicode identifiers, trivia/comments, quoted strings, template literals, regular-expression literals, and punctuation. It marks JSX tag/text regions when TSX mode is enabled.
+2. The translator considers candidate Polish dictionary tokens and their nearby tokens. Some forms have dedicated contextual checks; others use the position heuristics described in the language spec.
+3. Babel parses the translated text as a TypeScript module. TSX mode adds Babel's JSX parser plugin. Legacy decorators are enabled in both modes.
+4. Babel's generator prints the parsed program. It may normalize whitespace and punctuation; comments are retained by default.
 
-## Pass-through and limits
+Babel parser errors are translated to `TranspileError` and mapped through the token offset table to the original Polish source. The map is for diagnostic locations only; PolishTS does not currently emit source map files.
 
-Comments, string/regex/template literals and JSX text are preserved by the
-lexer; recognized keywords in code expressions are translated. JSX is enabled
-only in TSX mode, and its tags/attributes remain intact. Babel may normalize
-formatting when generating output. PolishTS parses but does not type-check the
-result; use `tsc --noEmit` for type checking. See [`LANGUAGE_SPEC.md`](LANGUAGE_SPEC.md)
-for contextual rules and known limits.
+## Current limitations
 
-`npm test` runs unit, fixture, property, regression, TS/TSX compilation and
-React contract tests. `npm run package:smoke` installs and exercises a packed
-tarball. `npm run benchmark` reports a repeatable large-file timing (informative,
-not yet a CI threshold). Release and compatibility policy lives in
-[`docs/releasing.md`](docs/releasing.md); changes are tracked in
-[`CHANGELOG.md`](CHANGELOG.md).
+- This is not a full Polish-language grammar. It is a lexer plus context-sensitive token substitution before parsing.
+- The template scanner treats the entire backtick literal as protected text. PolishTS words inside `${...}` are **not translated** in this version. Write standard TypeScript keywords inside template interpolations.
+- Context checks for operators and type words are heuristic. A Polish dictionary spelling used as an identifier in an ambiguous expression may still be translated or may not be translated where intended. Tests cover common cases, not every valid TypeScript parse.
+- JSX detection is lexical and heuristic. Standard tags, attributes, child text, and expressions are tested; uncommon or deeply nested grammar edge cases may require a fix before use.
+- Babel parser acceptance does not guarantee that `tsc` accepts the output or that it type-checks. PolishTS does not run TypeScript's checker.
+- Output formatting is generated by Babel. Formatting-preserving edits, source maps, watch mode, multi-file project compilation, and Vite plugins are not provided.
+- The selected Babel parser release determines which TypeScript syntax can be parsed. The library parser adapter can replace the parser function, but `version` is informational.
 
-## CI and npm publishing
+## Development and verification
 
-GitHub Actions runs the build, tests, package smoke test, and `npm pack
---dry-run` for pull requests targeting `dev` or `main`, and for pushes to those
-branches. The Node matrix tests representative supported majors from the
-declared `>=18` range. A push to `main` publishes the package after every matrix
-job passes.
+```sh
+npm ci
+npm run build
+npm test
+npm run package:smoke
+npm pack --dry-run
+```
 
-Publishing uses npm trusted publishing (GitHub Actions OIDC), so no npm token
-needs to be stored in GitHub. To enable it:
+`npm test` includes CLI tests, dictionary/transpilation regressions, grammar fixtures, deterministic Unicode/large-input checks, TS/TSX compiler checks, and the React starter source/output contract. `npm run package:smoke` packs the package, installs that tarball in a temporary consumer, then exercises the CLI and library API. `npm run benchmark` reports a median for a generated 10,000-declaration input; it is informational and has no CI performance threshold.
 
-1. If `polishts` has not been published yet, create its first release from your
-   machine: run `npm login`, choose a unique version in `package.json`, run
-   `npm ci && npm run build`, then run `npm publish --access public`.
-2. On npmjs.com, open the `polishts` package settings and add a GitHub Actions
-   trusted publisher. Set the owner to `ressca`, repository to `polishTS`, and
-   workflow filename to `ci.yml`. Allow direct `npm publish` for this
-   publisher.
-3. Before each release, bump `version` in `package.json` (and
-   `package-lock.json`) and merge the change to `main`. The `main` workflow
-   publishes that version after CI succeeds; npm will reject a version that
-   has already been published.
-
-The publish workflow uses Node 24 because npm trusted publishing requires Node
-22.14 or newer and npm 11.5.1 or newer.
+GitHub Actions tests Node 18, 20, 22, 24, and 26. A separate clean-install job runs `npm ci` and the production build for the React starter. Publishing from `main` is gated on both jobs. See [`docs/RELEASING.md`](docs/RELEASING.md) for the current release process and [`CHANGELOG.md`](CHANGELOG.md) for changes.

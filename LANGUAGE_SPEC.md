@@ -1,171 +1,126 @@
-# Kontrakt języka PolishTS — wersja 0.3
+# PolishTS language contract 0.3
 
-Ten dokument ustala zakres i reguły języka wejściowego PolishTS. Jest kontraktem projektowym dla implementacji; nie oznacza, że wszystkie wymienione konstrukcje są już obsługiwane przez bieżący tokenizer.
+Polish translation: [`LANGUAGE_SPEC.pl.md`](LANGUAGE_SPEC.pl.md). This document describes the vocabulary currently present in `src/dictionary.ts` and the behavior implemented by the lexer, translator, and parser. “Dictionary entry” does not mean “unconditional replacement”: translation depends on token kind and nearby tokens.
 
-## 1. Cel i granice
+## 1. Processing model
 
-PolishTS to polskojęzyczna warstwa składniowa nad TypeScript. Tłumaczy rozpoznane słowa składniowe na ich standardowe odpowiedniki i emituje TypeScript lub TSX. Nie sprawdza typów, nie wykonuje kodu i nie zastępuje `tsc`, Reacta ani bundlera.
+The implementation runs these stages:
 
-Zasady nadrzędne:
+1. `lex(source)` creates tokens with UTF-16 offsets. It recognizes Unicode identifiers, whitespace, line/block comments, single/double-quoted strings, whole template literals, regex-like literals, and punctuation. In JSX mode, an additional lexical pass marks tag, attribute-name, and child-text tokens.
+2. `translate(source)` changes selected identifier tokens using `DICTIONARY` and context heuristics. Comments and literal tokens are copied. JSX-marked tokens are not translated. It also creates an output-offset-to-source-offset table.
+3. Babel parses the translated text as a TypeScript module. `jsx: true` enables JSX; legacy decorators are enabled in both modes.
+4. Babel generator emits formatted source code with comments enabled.
 
-1. Kod wynikowy ma zachowywać semantykę źródła.
-2. Tłumaczone są wyłącznie słowa pełniące w danym miejscu rolę składniową.
-3. Nazwy użytkownika, literały i treść JSX nie są tłumaczone.
-4. Poprawna, niepolska składnia TypeScript może być mieszana z polskimi słowami.
-5. Brak obsługi rozszerzenia nie może po cichu zmieniać znaczenia programu.
+The implementation is not a Polish grammar parser and does not translate a TypeScript AST. It substitutes lexical tokens before parsing. This distinction matters for ambiguous dictionary words and is why the rules below describe current behavior rather than a complete language design.
 
-## 2. Gramatyka i zakres
+## 2. Supported input modes and parser
 
-Gramatyka PolishTS jest przyrostowym podzbiorem gramatyki TypeScript obsługiwanej przez wybraną wersję parsera Babel. To nie jest osobny język o niezależnej gramatyce. W miejscach oznaczonych poniżej polskie słowo zastępuje wskazany token TypeScript; pozostała składnia TypeScript przechodzi bez zmian.
-
-| Obszar | Kontrakt docelowy | Status w obecnej implementacji |
+| Input/use | JSX parser | Intended output |
 | --- | --- | --- |
-| Deklaracje | `stała` / `zmienna` / `var` odpowiadają `const` / `let` / `var`; funkcje, klasy, interfejsy, aliasy typów i enumy używają słów z tabeli słownika | Podstawowe zamiany tekstowe; parser akceptuje TypeScript Babel |
-| Typy | Polskie nazwy typów prymitywnych; unie, przecięcia, tuple, typy literałowe, `keyof`, `typeof`, typy indeksowane i generyki są obsługiwane jako składnia TypeScript | Składnia parsowana przez Babel; test zgodności kompiluje reprezentatywny wynik przez `tsc` |
-| Operatory | Polskie aliasy wybranych operatorów działają wyłącznie w pozycji operatora | Zamiana tokenów bez analizy pozycji, więc obecnie może zmienić identyfikatory |
-| Sterowanie przepływem | Warunki, pętle, `return`, `break`, `continue`, `try/catch/finally`, `throw`, standardowe `switch/case/default` | Polskie aliasy podstawowych instrukcji są mapowane; `switch` może być zapisany standardowo |
-| Moduły | Import/export TS; `z` jest aliasem `from` tylko wewnątrz instrukcji modułu | Kontekstowa translacja `z`, `importuj`, `eksportuj`, `jako` |
-| Klasy | Klasy, dziedziczenie, implementacje interfejsów, konstruktor, widoczność, `readonly`, `static`, `abstract` | Macierz testowa obejmuje `implements` i modyfikatory |
-| Generyki | Standardowa składnia `<T>`, ograniczenia `extends` i typ domyślny; `keyof`/`typeof` oraz indeksowane typy standardowo lub przez aliasy | Pokryte testem translacji i kompilacji TypeScript |
-| JSX/TSX | Tryb jawny `.pltsx`/`--tsx`; JSX zachowuje tagi, atrybuty i tekst, zaś wyrażenia `{...}` używają translacji PolishTS | Obsługiwane przez lexer i parser Babel w trybie TSX; generator zachowuje JSX |
-| Dekoratory | Zależne od obsługiwanej wersji TypeScript/Babel i jawnej konfiguracji | Parser włącza `decorators-legacy`; brak osobnego kontraktu |
-| Pozostała składnia TS | Przechodzi bez zmian, o ile parser w aktywnym trybie ją akceptuje | Zasadniczo parser Babel ją akceptuje po naiwnych podmianach |
+| `transpile(source)` | Disabled | TypeScript text |
+| `transpile(source, { jsx: true })` | Enabled | TypeScript text preserving JSX |
+| CLI `.plts` | Disabled unless `--tsx` | `.ts` |
+| CLI `.pltsx` | Enabled automatically | `.tsx` |
+| CLI `--tsx` | Enabled | `.tsx` by default for file input |
 
-Przykładowe kształty składni (nie pełna EBNF):
+The bundled parser is `@babel/parser` resolved by the package lock. It uses Babel's `typescript` plugin and `decorators-legacy`; TSX additionally uses `jsx`. The public `ParserAdapter` lets a caller replace the parser function. Its `version` property is informational; the implementation does not enforce a TypeScript grammar version or configure TypeScript compiler options.
 
-```text
-deklaracja-zmiennej := stała | zmienna | var
-deklaracja-funkcji := [asynchroniczna] funkcja [nazwa] [generyki] (parametry) [: typ] blok
-deklaracja-typu := typ | interfejs | enumeracja
-instrukcja-warunkowa := jeżeli (wyrażenie) instrukcja [inaczej instrukcja]
-instrukcja-pętli := dla | dopóki | zrób
-moduł := importuj ... z "moduł" | eksportuj ...
-operator-logiczny := wyrażenie i wyrażenie | wyrażenie lub wyrażenie
-jsx := standardowy JSX; wyrażenia w klamrach są kodem PolishTS/TS
-```
+The grammar therefore follows the selected Babel parser release. Type checking and target/compiler compatibility are separate checks performed by TypeScript (`tsc`).
 
-Przykład mieszania składni:
+## 3. Translation vocabulary
 
-```ts
-importuj { useState } z "react";
+This table is generated from the current implementation dictionary. The context column summarizes the implemented behavior; it is not a promise that every syntactic position is recognized.
 
-typ Props = { imię: ciąg };
-
-eksportuj funkcja Powitanie({ imię }: Props) {
-  zwróć <h1>Cześć, {imię}</h1>;
-}
-```
-
-Docelowy wynik to TSX ze standardowym `import`, `from`, `type`, `string`, `export`, `function` i `return`; `imię`, `Powitanie`, `useState` oraz tekst `Cześć` zostają takie same.
-
-## 3. Słowa składniowe a nazwy użytkownika
-
-### Reguła docelowa
-
-Mapowanie zależy od roli tokenu w gramatyce, nie od samego zapisu. Tłumacz musi rozpoznawać składnię i pozycje identyfikatorów. Przykłady:
-
-```ts
-obiekt.nie       // `nie` jest nazwą właściwości, nie operatorem
-funkcja test(prawda: logiczna) { zwróć prawda; }
-// `prawda` w deklaracji i odwołaniu jest nazwą parametru
-<Panel tytuł="Prawda i fałsz">Treść: prawda</Panel>
-// nazwa atrybutu, wartość tekstowa i tekst JSX pozostają bez zmian
-```
-
-W pozycji wyrażenia `nie x` oznacza operator negacji, a `prawda` użyte jako samodzielna wartość logiczna oznacza `true`. Słowo w pozycji deklaracji lub nazwy właściwości ma pierwszeństwo jako identyfikator, jeśli gramatyka dopuszcza tam nazwę. Literały tekstowe, komentarze, template literal oraz tekst/atrybuty JSX są nieprzezroczyste dla translacji.
-
-### Nazwy kolidujące ze słowami zarezerwowanymi
-
-Słowa, które są bezwarunkowymi słowami języka (np. `stała` na początku deklaracji), nie mogą być użyte jako zwykłe lokalne identyfikatory w tej samej pozycji składniowej. Nie dodajemy własnego mechanizmu ucieczki w wersji 0.3. Gdy potrzebna jest taka nazwa, należy użyć innej nazwy lokalnej albo aliasu w miejscu, gdzie TS dopuszcza aliasowanie. Nazwy właściwości, parametrów i pól mogą pokrywać się z polskim słowem, jeśli ich pozycja jest jednoznaczna.
-
-Parser/translacja nie może rozstrzygać niejednoznaczności przez ciche przepisanie identyfikatora. Nierozstrzygnięty przypadek ma dać diagnostykę z lokalizacją i sugestią użycia jednoznacznej składni.
-
-## 4. Nieznane konstrukcje TypeScript
-
-Domyślna polityka: składnia TS, której PolishTS nie ma w słowniku, przechodzi bez zmian, jeśli jest poprawna w aktywnym trybie parsera. Dotyczy to m.in. nowych konstrukcji TypeScript, nazw API, nazw typów z bibliotek oraz niepolskich słów kluczowych.
-
-- Nieznane słowa nie są automatycznie tłumaczone ani odrzucane przez sam słownik.
-- Niepoprawna składnia w aktywnym trybie daje błąd parsera z pozycją źródłową.
-- Parser nie może „naprawiać” nieznanej składni przez zgadywanie zamiany.
-- W trybie TSX JSX jest dozwolony; w trybie TS zwykłym parser zgłasza JSX jako błąd.
-- Zgodność z nową składnią TS zależy od wersji parsera Babel w danym wydaniu; wersja ta powinna być podana w dokumentacji i testowana.
-- Biblioteka domyślnie używa przypiętego zależnościami `@babel/parser`; `transpile(source, { parser })` pozwala przekazać adapter zgodnego wydania parsera. Babel nie emuluje konkretnej wersji gramatyki TypeScript, więc zgodność semantyczna wyniku jest weryfikowana oddzielnie przez `tsc` projektu.
-
-## 5. Słownik: decyzje kontraktowe
-
-Status „zatwierdzone” oznacza zamierzone znaczenie językowe, ale nie gwarantuje poprawności obecnego kodu. Status „odłożone” oznacza, że forma nie jest częścią publicznego kontraktu 0.3.
-
-| Forma wejściowa | Decyzja | Uzasadnienie / uwagi |
+| Input token(s) | Output token(s) | Current context / notes |
 | --- | --- | --- |
-| `stała`, `zmienna` | Zatwierdzone: `const`, `let` | Deklaracja zmiennej, wyłącznie w pozycji składniowej |
-| `liczba`, `ciąg`, `łańcuch`, `logiczna` | Zatwierdzone: `number`, `string`, `string`, `boolean` | Aliasy typów prymitywnych |
-| `dowolny`, `nieznany`, `nic`, `nigdy`, `obiekt`, `symbol` | Zatwierdzone: odpowiednie typy TS | Nie są tłumaczone w pozycjach identyfikatorów |
-| `duża_liczba` | Zatwierdzone: `bigint` | Poprawna forma; błędna `duża_liczca` nie jest aliasem |
-| `prawda`, `fałsz` | Zatwierdzone: `true`, `false` w pozycji literału logicznego | W pozycji nazwy, np. parametr, pozostają identyfikatorem |
-| `null` | Zwykły TS: `null` | Angielski token nie potrzebuje translacji; wpis słownika jest zbędny |
-| `nieokreślony` | Zatwierdzone: `undefined` w pozycji wartości | Pozycja identyfikatora pozostaje nazwą |
-| `i` | Zatwierdzone kontekstowo jako `&&` wyłącznie między wyrażeniami | `i + 1` i samodzielna nazwa `i` pozostają nazwą; `a i b` jest operatorem. Dla przecięcia typów używa się standardowego `&` |
-| `lub`, `nie` | Zatwierdzone kontekstowo jako `||`, `!` w pozycji operatora | Pozycje nazw i właściwości są zachowane |
-| `równa`, `różne`, `mniejsze`, `większe`, `mniejsze_równe`, `większe_równe` | Zatwierdzone kontekstowo jako operatory porównania | Używać tylko w pozycji operatora |
-| `przypisz`, `plus_równa`, `minus_równa`, `razy_równa`, `podziel_równo`, `modulo_równa` | Zatwierdzone kontekstowo jako operatory przypisania | Wymagają rozpoznania operatora, nie podstawienia w nazwach |
-| `pytajnik_kropka`, `podwójne_pytajnik` | Zatwierdzone jako `?.`, `??` | Nietypowe, ale jawne aliasy operatorów |
-| `jeżeli`, `inaczej`, `dla`, `dopóki`, `zrób`, `przerwij`, `kontynuuj`, `zwróć` | Zatwierdzone dla konstrukcji sterujących | Nie tłumaczyć w nazwach identyfikatorów |
-| `wybierz` | Odrzucone jako alias `pick` | `pick` nie jest słowem kluczowym TS; dla utility type należy używać standardowego `Pick` albo bibliotecznego typu |
-| `pomiń`, `częściowy`, `wymagany` | Odłożone; obecne cele `omit`, `partial`, `required` są nieprawidłowe jako bezpośrednie odpowiedniki | Jeśli kiedyś zatwierdzone, mapować na standardowe nazwy typów `Omit`, `Partial`, `Required` z zachowaniem wielkości liter i jako utility types, nie keywordy |
-| `switch` | Pozostaje standardowym TS `switch` | Wpis angielski jest redundantny; polska propozycja `wybierz` odrzucona z powodu kolizji z utility `Pick` |
-| `przypadku`, `domyślny` | Zatwierdzone: `case`, `default` w instrukcji switch | `domyślny` nie jest aliasem `default` w innych konstrukcjach bez osobnej reguły |
-| `funkcja`, `asynchroniczna`, `oczekuj` | Zatwierdzone: `function`, `async`, `await` | Wymagają pozycji składniowej |
-| `arrow` | Odrzucone jako słowo języka; `=>` zapisuje się standardowo | Angielska nazwa nie jest polskim aliasem ani poprawnym substytutem operatora |
-| `klasa`, `rozszerza`, `konstruktor` | Zatwierdzone: `class`, `extends`, `constructor` | Składnia klas |
-| `implementuj` | Zatwierdzone jako `implements` | Polska forma; obecny angielski wpis `implements` jest zbędny |
-| `implements`, `new` | Pozostają standardową składnią TS | Bez translacji; wpisy angielskie w słowniku usunąć |
-| `rozszerz` | Odłożone; nie jest synonimem `rozszerza` w kontrakcie 0.3 | Unikać dwóch form dla tej samej konstrukcji do czasu specyfikacji kontekstu |
-| `ten`, `rodzaj`, `instancja` | Zatwierdzone kontekstowo jako `this`, `typeof`, `instanceof` | `typeof` ma odrębne pozycje typowe i wyrażeniowe; translator musi je rozróżniać |
-| `interfejs`, `typ`, `enumeracja`, `wyliczenie` | Zatwierdzone: `interface`, `type`, `enum`, `enum` | Dwa aliasy dla enumu zachowane na start; można później ograniczyć |
-| `importuj`, `eksportuj`, `domyślny_eksport`, `jako` | Zatwierdzone: `import`, `export`, `export default`, `as` | `export default` to konstrukcja wielotokenowa i wymaga obsługi parsera |
-| `z` | Zatwierdzone kontekstowo jako `from` wyłącznie w klauzuli import/export | Nie jest ogólnym słowem kluczowym; nie wolno odfiltrowywać ani podmieniać globalnie |
-| `narzędzie`, `klucze` | Zatwierdzone kontekstowo jako `keyof` w typie | `narzędzie` pozostaje aliasem zgodności z dotychczasowym słownikiem; preferowana forma to `klucze` |
-| `spełnia` | Zatwierdzone kontekstowo jako `satisfies` | Alternatywnie można pisać standardowe `satisfies` |
-| `ogólny` | Odrzucone jako `generic` | `generic` nie jest słowem kluczowym TS. Składnia generyków pozostaje standardowym zapisem `<T>` do czasu ustalenia kompletnej polskiej gramatyki |
-| `modyfikator`, `tylko_czytelny` | Zatwierdzone jako aliasy `readonly` | Dwa aliasy utrzymywane tymczasowo; preferowana forma `tylko_czytelny` |
-| `publiczny`, `publiczne`, `prywatny`, `prywatne`, `chroniony`, `chronione` | Zatwierdzone jako modyfikatory klas | Zgodność rodzaju jest aliasem; nie zmienia nazw w innych pozycjach |
-| `statyczny`, `abstrakcyjna` | Zatwierdzone: `static`, `abstract` | Modyfikatory klas |
-| `spróbuj`, `złap`, `na_koniec`, `rzuć` | Zatwierdzone: `try`, `catch`, `finally`, `throw` | Pozycje instrukcji |
-| `błąd`, `nowy_błąd` | Odłożone jako substytuty `Error`, `new Error` | Są nazwami/globalnym API, a nie konstrukcjami języka; zapis standardowy `Error`/`new Error` jest czytelniejszy i nie wymaga translacji |
-| `var`, `new`, `null`, `switch`, `implements`, `extends` | Standardowe słowa TS, nie wpisy polskiego słownika | Pozostają dozwolone bez zmian |
+| `stała` | `const` | Variable declaration keyword |
+| `zmienna` | `let` | Variable declaration keyword |
+| `var` | `var` | No-op entry |
+| `liczba` | `number` | Translated when the preceding token suggests a type position (`:`, `<`, `|`, `&`, `as`, `extends`, `implements`, `)`) |
+| `ciąg`, `łańcuch` | `string` | Same type-position heuristic |
+| `logiczna` | `boolean` | Same type-position heuristic |
+| `dowolny` | `any` | Same type-position heuristic |
+| `nieznany` | `unknown` | Same type-position heuristic |
+| `nic` | `void` | Same type-position heuristic |
+| `nigdy` | `never` | Same type-position heuristic |
+| `obiekt` | `object` | Same type-position heuristic |
+| `symbol` | `symbol` | Same type-position heuristic; no visible spelling change |
+| `duża_liczba` | `bigint` | Same type-position heuristic |
+| `prawda`, `fałsz` | `true`, `false` | Boolean-literal heuristic; a following `:` protects likely property/parameter names |
+| `nieokreślony` | `undefined` | Value-position heuristic |
+| `i` | `&&` | Only when previous and next tokens look like expression operands; not a general word replacement |
+| `lub` | `||` | Operator-position heuristic |
+| `nie` | `!` | Operator/value-position heuristic; member/property/declaration names are protected in common forms |
+| `równa`, `różne` | `===`, `!==` | Operator-position heuristic |
+| `mniejsze`, `większe` | `<`, `>` | Operator-position heuristic; do not use as Polish generic delimiters |
+| `mniejsze_równe`, `większe_równe` | `<=`, `>=` | Operator-position heuristic |
+| `przypisz` | `=` | Assignment token |
+| `plus_równa`, `minus_równa`, `razy_równa` | `+=`, `-=`, `*=` | Compound assignment tokens |
+| `podziel_równo`, `modulo_równa` | `/=`, `%=` | Compound assignment tokens |
+| `pytajnik_kropka`, `podwójne_pytajnik` | `?.`, `??` | Optional chaining/nullish coalescing tokens |
+| `jeżeli`, `inaczej` | `if`, `else` | Statement-position heuristic |
+| `dla`, `dopóki`, `zrób` | `for`, `while`, `do` | Statement-position heuristic |
+| `przerwij`, `kontynuuj`, `zwróć` | `break`, `continue`, `return` | Statement-position heuristic |
+| `przypadku` | `case` | Switch label keyword |
+| `domyślny` | `default` | Currently recognized for a `default:`-like token position |
+| `funkcja` | `function` | Declaration-position heuristic |
+| `asynchroniczna`, `oczekuj` | `async`, `await` | Dictionary entries; use/test in ordinary TS positions |
+| `klasa` | `class` | Declaration-position heuristic |
+| `rozszerza` | `extends` | Dictionary entry; class/type context is parsed by Babel |
+| `implementuj` | `implements` | Class declaration modifier |
+| `konstruktor` | `constructor` | Class member token |
+| `modyfikator`, `tylko_czytelny` | `readonly` | Modifier tokens |
+| `publiczny`, `publiczne` | `public` | Modifier tokens |
+| `prywatny`, `prywatne` | `private` | Modifier tokens |
+| `chroniony`, `chronione` | `protected` | Modifier tokens |
+| `statyczny`, `abstrakcyjna` | `static`, `abstract` | Modifier tokens |
+| `ten`, `rodzaj`, `instancja` | `this`, `typeof`, `instanceof` | Dictionary replacements subject to identifier protection; context is not fully AST-aware |
+| `interfejs`, `typ` | `interface`, `type` | Declaration-position heuristic |
+| `enumeracja`, `wyliczenie` | `enum` | Declaration-position heuristic |
+| `importuj`, `eksportuj` | `import`, `export` | Module declaration positions |
+| `domyślny_eksport` | `export default` | Multi-token replacement |
+| `jako` | `as` | Alias/type assertion token |
+| `z` | `from` | Only when a preceding import/export token is found and the next significant token is a literal |
+| `narzędzie`, `klucze` | `keyof` | Type-position heuristic |
+| `spełnia` | `satisfies` | TypeScript `satisfies` token |
+| `spróbuj`, `złap`, `na_koniec`, `rzuć` | `try`, `catch`, `finally`, `throw` | Statement-position heuristic |
 
-Wielkość liter jest istotna dla nazw API i typów. W szczególności utility types to `Pick`, `Omit`, `Partial`, `Required`, a nie małe litery.
+The dictionary does not contain `switch`, `new`, `null`, `implements`, `extends`, `as`, `from`, or `=>` as Polish aliases. Those standard TypeScript tokens can be written directly. `wybierz`, `pomiń`, `częściowy`, `wymagany`, `ogólny`, `duża_liczca`, `arrow`, `błąd`, and `nowy_błąd` are not current dictionary entries.
 
-## 6. Konwencja nazw
+## 4. Names, literals, comments, and JSX
 
-- Nazwy zmiennych, parametrów, funkcji, klas, komponentów React, propsów, pól, metod, typów i modułów są zachowywane dokładnie, łącznie z polskimi znakami i wielkością liter.
-- Nazwy API z bibliotek, takie jak `useState`, `useEffect`, `React`, `Pick` i `Promise`, zapisuje się zgodnie z ich rzeczywistą nazwą.
-- Nie tłumaczy się automatycznie nazw domenowych na angielski.
-- Słowo z tabeli słownika może być identyfikatorem, jeśli występuje w jednoznacznej pozycji identyfikatora. Translacja nie może zmienić go na słowo TS.
-- W JSX zachowane są nazwy tagów, komponentów, atrybutów/propsów i tekst dzieci. Kod wewnątrz `{...}` jest kodem i podlega regułom pozycji składniowych.
+### Names
 
-## 7. Niepoprawne i niejednoznaczne przykłady
+The intended convention is to preserve user-defined names, including Polish identifiers: variable/function/class/component names, parameter names, object properties, type names, import aliases, JSX tags, and props. Tests cover representative declaration names, parameters, object keys, member properties, import aliases, and type names.
 
-Poniższe przykłady mają być błędem składni/diagnostyki, a nie okazją do zgadywania:
+The translator has a limited `declaredNames` guard plus position heuristics. It is not a symbol-table or scope-aware resolver. A dictionary spelling used as a name in an untested or ambiguous position can still be changed. In particular, do not assume every spelling in this table is safe as an arbitrary identifier in every valid TypeScript context.
 
-```ts
-stała wynik przypisz ;      // brak wyrażenia po operatorze przypisania
-importuj { x } "moduł";    // brakuje `z`/`from`
-```
+### Comments and literals
 
-Poniższe przykłady są poprawne i nazwy muszą zostać zachowane:
+Line comments, block comments, single-quoted strings, and double-quoted strings are lexed as opaque tokens and copied. Escapes in quoted strings are scanned so that escaped quotes do not end the token early. Regex-like literals are scanned and copied using a heuristic that decides whether `/` begins a regex or division.
 
-```ts
-funkcja test(prawda: logiczna) { zwróć prawda; }
-const wynik = obiekt.nie;
-const tekst = `wartość: ${prawda}`;
-```
+A complete backtick template, including `${...}` interpolations, is currently treated as one opaque literal. Consequently, Polish keywords inside an interpolation are not translated. For example, write `true` rather than `prawda` inside `` `${...}` `` until interpolation-aware lexing is implemented.
 
-W przykładzie template literal identyfikator `prawda` w interpolacji jest identyfikatorem, jeśli jest zadeklarowany jako taki; sam tekst template literal nie jest tłumaczony.
+### JSX
 
-## 8. Reguły kompatybilności
+JSX is available only when the parser is explicitly in JSX mode. The CLI selects this mode for `.pltsx` and `--tsx`; library callers use `{ jsx: true }`. In JSX mode the lexer attempts to protect tag names, attribute names, child text, and quoted attribute values. Tokens inside `{ ... }` are treated as code and may be translated. JSX recognition is a lexical heuristic rather than Babel-AST traversal, so unusual syntax may not be handled correctly.
 
-- Zatwierdzone mapowania są częścią językowego API. Zmiana ich znaczenia wymaga major wersji albo ścieżki deprecjacji.
-- Formy oznaczone „odłożone” lub „odrzucone” nie są obsługiwane aliasami w stabilnym kontrakcie 0.3.
-- Implementacja może obsługiwać mniej niż kontrakt docelowy wyłącznie wtedy, gdy ograniczenie jest jawnie udokumentowane; nie może twierdzić, że dana pozycja jest bezpiecznie tłumaczona bez testu kontekstowego.
-- Każda zatwierdzona forma musi mieć testy: użycie składniowe, użycie jako identyfikator (jeśli dopuszczalne), wystąpienie w literałach/komentarzu oraz wygenerowany wynik.
+PolishTS preserves JSX for the downstream TypeScript/React toolchain. It does not lower JSX to `React.createElement`. TypeScript's `jsx` option (`react-jsx`, `react`, or `preserve`) is configured by the consuming project.
+
+## 5. TypeScript syntax and pass-through
+
+The translator does not rewrite unlisted identifiers or syntax tokens. Babel then parses the result as TypeScript (and optionally JSX). Common TS constructs tested in this repository include unions/intersections, literal types, tuple types, `keyof`, `typeof`, indexed access, generic parameters, constraints/defaults, `implements`, `satisfies`, `switch`, and TSX forms. The compatibility tests compile selected output with the repository's resolved TypeScript compiler; they are representative coverage, not proof of support for every TypeScript feature.
+
+Some Polish primitive type words are translated only after selected preceding tokens. In particular, the implementation's type-word check is a short predecessor list, not a complete type parser. A Polish primitive in a type-alias right-hand side or another untested position may remain untranslated. Write the standard TypeScript spelling in uncertain positions or add a regression/`tsc` test before relying on the form.
+
+Unknown TypeScript syntax passes through the translator unchanged unless it contains a recognized Polish spelling that matches a replacement heuristic. Babel must still accept the result. There is no configured “TypeScript language version” option: the selected Babel parser release controls parser grammar. The library's `ParserAdapter` can replace the parse function, but no parser/TypeScript version negotiation is performed.
+
+## 6. Diagnostics and output
+
+`TranspileError` exposes `kind: 'parse' | 'transform'`, a message, an optional one-based `location`, and the parser/generator failure in `cause`. Parse positions are converted from translated text offsets to the original source with a token-offset table. The translator does not currently emit source-map files.
+
+Babel generator can normalize whitespace, semicolons, and line wrapping. The output is TypeScript/TSX source, not JavaScript. PolishTS does not type-check, resolve imports, execute code, or bundle a project.
+
+## 7. Grammar versioning
+
+`LANGUAGE_VERSION` is exported by the package and currently equals `0.3`. It versions the documented Polish vocabulary/behavior, not the npm package or the Babel/TypeScript parser. Compatibility and release policy is described in [`docs/RELEASING.md`](docs/RELEASING.md). Every stable vocabulary change should update this document, its Polish counterpart, tests, and `LANGUAGE_VERSION` when the contract version changes.
