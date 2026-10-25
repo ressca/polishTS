@@ -1,0 +1,2 @@
+importuj { useState jako stan } z "react";
+eksportuj { stan };
