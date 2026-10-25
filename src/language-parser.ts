@@ -1,15 +1,25 @@
 import * as babelParser from '@babel/parser';
+import type { ParserOptions } from '@babel/parser';
 import { TranspileError } from './errors.js';
 import { translate } from './translator.js';
 
-export const LANGUAGE_VERSION = '0.1';
+export const LANGUAGE_VERSION = '0.3';
 
-export function parseLanguage(source: string) {
+export interface ParserAdapter {
+  /** Informational parser package/version chosen by the caller. */
+  version: string;
+  parse: typeof babelParser.parse;
+}
+
+const defaultParser: ParserAdapter = { version: 'bundled @babel/parser', parse: babelParser.parse };
+
+export function parseLanguage(source: string, parser: ParserAdapter = defaultParser, jsx = false) {
   const translated = translate(source);
   try {
-    return babelParser.parse(translated.code, {
+    const plugins = jsx ? ['typescript', 'jsx', 'decorators-legacy'] : ['typescript', 'decorators-legacy'];
+    return parser.parse(translated.code, {
       sourceType: 'module',
-      plugins: ['typescript', 'decorators-legacy'],
+      plugins: plugins as NonNullable<ParserOptions['plugins']>,
     });
   } catch (cause) {
     const error = cause as { message?: string; pos?: number; loc?: { line?: number; column?: number } };

@@ -4,7 +4,7 @@ import { lex, type Lexeme } from './lexer.js';
 const contextual = new Set(['i', 'z', 'prawda', 'fałsz', 'nieokreślony', 'nie', 'lub', 'równa', 'różne', 'mniejsze', 'większe', 'mniejsze_równe', 'większe_równe']);
 const declarationWords = new Set(['funkcja', 'klasa', 'interfejs', 'typ', 'enumeracja', 'wyliczenie', 'stała', 'zmienna', 'importuj', 'eksportuj']);
 const nameIntroducers = new Set(['funkcja', 'klasa', 'interfejs', 'typ', 'enumeracja', 'wyliczenie', 'stała', 'zmienna']);
-const typeWords = new Set(['liczba', 'ciąg', 'łańcuch', 'logiczna', 'dowolny', 'nieznany', 'nic', 'nigdy', 'obiekt', 'symbol', 'duża_liczca']);
+const typeWords = new Set(['liczba', 'ciąg', 'łańcuch', 'logiczna', 'dowolny', 'nieznany', 'nic', 'nigdy', 'obiekt', 'symbol', 'duża_liczba']);
 
 function significant(tokens: Lexeme[], index: number, direction: -1 | 1): Lexeme | undefined {
   for (let i = index + direction; i >= 0 && i < tokens.length; i += direction) {
@@ -16,18 +16,39 @@ function significant(tokens: Lexeme[], index: number, direction: -1 | 1): Lexeme
 function isDeclarationName(token: Lexeme, prev: Lexeme | undefined, next: Lexeme | undefined): boolean {
   if (prev?.value === '.' || prev?.value === '?.') return true;
   if (next?.value === ':') return true; // object keys and named parameters
-  if (prev?.kind === 'identifier' && (nameIntroducers.has(prev.value) || ['const', 'let', 'var', 'function', 'class', 'interface', 'type', 'enum'].includes(prev.value))) return true;
+  if (prev?.kind === 'identifier' && (nameIntroducers.has(prev.value) || ['function', 'class', 'interface', 'type', 'enum'].includes(prev.value))) return true;
   if (prev?.value === 'as') return true; // import/export alias
   if (prev?.value === '{' && next?.value === ',') return true;
   return false;
 }
 
-function shouldTranslate(word: string, prev: Lexeme | undefined, next: Lexeme | undefined, token: Lexeme): boolean {
+function isModuleFrom(tokens: Lexeme[], index: number): boolean {
+  for (let i = index - 1; i >= 0; i--) {
+    const token = tokens[i]!;
+    if (token.kind === 'trivia') {
+      if (/\n/.test(token.value) && i < index - 2) {
+        const sameStatement = tokens.slice(i + 1, index).some(item => item.kind !== 'trivia' && ['importuj', 'eksportuj', 'import', 'export'].includes(item.value));
+        if (!sameStatement) return false;
+      }
+      continue;
+    }
+    if (token.value === ';') break;
+    if (['importuj', 'eksportuj', 'import', 'export'].includes(token.value)) return true;
+  }
+  return false;
+}
+
+function shouldTranslate(word: string, prev: Lexeme | undefined, next: Lexeme | undefined, token: Lexeme, tokens: Lexeme[], index: number): boolean {
   if (!(word in DICTIONARY)) return false;
+  if (word === 'domyślny' && next?.value === ':' && (prev?.value === '{' || prev?.value === ';')) return true;
   if (isDeclarationName(token, prev, next)) return false;
   if (typeWords.has(word)) return Boolean(prev && [':', '<', '|', '&', 'as', 'extends', 'implements', ')'].includes(prev.value));
-  if (word === 'z') return prev?.value === '}' || prev?.kind === 'identifier' && /^(?:[\w$]+)$/.test(prev.value) && next?.kind === 'literal';
-  if (word === 'i') return Boolean(prev && next && ![';', '{', '}', ',', ':', '=>'].includes(prev.value) && ![';', '{', '}', ',', ':', '=>'].includes(next.value));
+  if (word === 'z') return isModuleFrom(tokens, index) && next?.kind === 'literal';
+  if (word === 'i') {
+    const leftCanEnd = Boolean(prev && (prev.kind === 'identifier' || prev.kind === 'literal' || [')', ']', '}', '++', '--'].includes(prev.value)));
+    const rightCanStart = Boolean(next && (next.kind === 'identifier' || next.kind === 'literal' || ['(', '[', '{', '!', '~'].includes(next.value)));
+    return leftCanEnd && rightCanStart;
+  }
   if (word === 'prawda' || word === 'fałsz' || word === 'nieokreślony') {
     if (prev?.value === ':') return false;
     return !next || [';', ')', ']', '}', ',', '.', '?.', '&&', '||', '??', '?', ':'].includes(next.value) || Boolean(prev && ['=', '(', '[', '{', ',', 'return', 'zwróć', '=>', '&&', '||', 'i', 'lub', 'nie'].includes(prev.value));
@@ -37,6 +58,7 @@ function shouldTranslate(word: string, prev: Lexeme | undefined, next: Lexeme | 
   }
   // TypeScript keywords and declarations are translated only in plausible syntactic positions.
   if (['stała', 'zmienna', 'funkcja', 'klasa', 'interfejs', 'typ', 'enumeracja', 'wyliczenie', 'jeżeli', 'inaczej', 'dla', 'dopóki', 'zrób', 'przerwij', 'kontynuuj', 'zwróć', 'spróbuj', 'złap', 'na_koniec', 'rzuć', 'eksportuj', 'importuj'].includes(word)) {
+    if (word === 'eksportuj' && next?.value === 'domyślny_eksport') return false;
     if (word === 'eksportuj' && next && (declarationWords.has(next.value) || next.value === 'domyślny_eksport')) return true;
     return !next || ['(', '{', '*', 'default'].includes(next.value) || !prev || [';', '{', '}', '(', 'export', 'eksportuj', 'default', 'domyślny_eksport', ')', 'else', 'inaczej', 'asynchroniczna', 'async'].includes(prev.value);
   }
@@ -67,7 +89,8 @@ export function translate(source: string): TranslatedSource {
     const token = tokens[i]!;
     const prev = significant(tokens, i, -1);
     const next = significant(tokens, i, 1);
-    const value = token.kind === 'identifier' && !declaredNames.has(token.value) && shouldTranslate(token.value, prev, next, token)
+    const isLogicalAnd = token.value === 'i';
+    const value = token.kind === 'identifier' && (isLogicalAnd || !declaredNames.has(token.value)) && shouldTranslate(token.value, prev, next, token, tokens, i)
       ? DICTIONARY[token.value]!
       : token.value;
     code += value;

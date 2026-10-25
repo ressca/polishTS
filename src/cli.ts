@@ -11,12 +11,15 @@ Usage:
   plts <input> [output]
   plts <input> --out <output>
   plts <input> --print
+  plts <input.pltsx> [output.tsx]
+  plts <input> --tsx [--out output.tsx]
   plts --stdin
 
 Options:
   --stdin   Read from standard input
   --out     Write to the given output path (defaults to the input basename in the current directory)
   --print   Write generated code to stdout instead of a file
+  --tsx     Parse as TSX and preserve JSX in the output
   --help    Show this help message
 
 Examples:
@@ -24,6 +27,8 @@ Examples:
   plts program.plts out.ts   Write to out.ts in the current directory
   plts program.plts --out out.ts
   plts program.plts --print
+  plts App.pltsx --out App.tsx
+  plts App.plts --tsx --out App.tsx
   plts program.plts dist/out.ts  Write to dist/out.ts
   plts --stdin < program.plts
 `);
@@ -55,11 +60,12 @@ function main(): void {
 
   const stdinMode = args.includes('--stdin');
   const printMode = args.includes('--print');
+  const tsxMode = args.includes('--tsx');
   let outputOption: string | undefined;
   const positional: string[] = [];
   for (let i = 0; i < args.length; i++) {
     const arg = args[i]!;
-    if (arg === '--stdin' || arg === '--print') continue;
+    if (arg === '--stdin' || arg === '--print' || arg === '--tsx') continue;
     if (arg === '--out') {
       const value = args[++i];
       if (!value || value.startsWith('--')) {
@@ -101,7 +107,7 @@ function main(): void {
     process.stdin.on('error', fail);
     process.stdin.on('end', () => {
       try {
-        process.stdout.write(`${transpile(input)}\n`);
+        process.stdout.write(`${transpile(input, { jsx: tsxMode })}\n`);
       } catch (error) {
         fail(error);
       }
@@ -119,8 +125,9 @@ function main(): void {
   try {
     const inputPath = path.resolve(inputFile);
     const source = fs.readFileSync(inputPath, 'utf8');
-    const output = transpile(source);
-    const defaultOutputName = `${path.basename(inputFile, path.extname(inputFile))}.ts`;
+    const useTsx = tsxMode || path.extname(inputFile).toLowerCase() === '.pltsx';
+    const output = transpile(source, { jsx: useTsx });
+    const defaultOutputName = `${path.basename(inputFile, path.extname(inputFile))}.${useTsx ? 'tsx' : 'ts'}`;
     const legacyOutput = positional[1];
     if (legacyOutput && outputOption) {
       console.error('Error: specify the output path either positionally or with --out, not both');

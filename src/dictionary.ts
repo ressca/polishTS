@@ -15,12 +15,11 @@ export const DICTIONARY: Record<string, string> = {
   nigdy: 'never',
   obiekt: 'object',
   symbol: 'symbol',
-  duża_liczca: 'bigint',
+  duża_liczba: 'bigint',
 
   // Values
   prawda: 'true',
   fałsz: 'false',
-  null: 'null',
   nieokreślony: 'undefined',
 
   // Operators
@@ -51,7 +50,6 @@ export const DICTIONARY: Record<string, string> = {
   przerwij: 'break',
   kontynuuj: 'continue',
   zwróć: 'return',
-  switch: 'switch',
   przypadku: 'case',
   domyślny: 'default',
 
@@ -59,12 +57,10 @@ export const DICTIONARY: Record<string, string> = {
   funkcja: 'function',
   asynchroniczna: 'async',
   oczekuj: 'await',
-  arrow: '=>',
 
   // OOP
   klasa: 'class',
   rozszerza: 'extends',
-  implements: 'implements',
   konstruktor: 'constructor',
   modyfikator: 'readonly',
   publiczny: 'public',
@@ -75,7 +71,6 @@ export const DICTIONARY: Record<string, string> = {
   chronione: 'protected',
   statyczny: 'static',
   abstrakcyjna: 'abstract',
-  new: 'new',
   ten: 'this',
   rodzaj: 'typeof',
   instancja: 'instanceof',
@@ -91,10 +86,8 @@ export const DICTIONARY: Record<string, string> = {
   jako: 'as',
   z: 'from',
   narzędzie: 'keyof',
-  wybierz: 'pick',
-  pomiń: 'omit',
-  częściowy: 'partial',
-  wymagany: 'required',
+  klucze: 'keyof',
+  spełnia: 'satisfies',
   tylko_czytelny: 'readonly',
 
   // Exception handling
@@ -102,11 +95,7 @@ export const DICTIONARY: Record<string, string> = {
   złap: 'catch',
   na_koniec: 'finally',
   rzuć: 'throw',
-  błąd: 'Error',
-  nowy_błąd: 'new Error',
 
   // Generics
-  ogólny: 'generic',
-  rozszerz: 'extends',
   implementuj: 'implements',
 };

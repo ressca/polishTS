@@ -50,6 +50,20 @@ const wynik = obiekt.prawda i nie fałsz;`);
     assert.match(code, /obiekt\.prawda && !false/);
   });
 
+  it('keeps the identifiers i and z while translating them in their operator and module roles', () => {
+    const code = transpile(`const i = 1;
+const z = "literal";
+const sum = i + 2;
+const active = prawda i fałsz;
+importuj { useState jako stan } z "react";`);
+    assert.match(code, /const i = 1/);
+    assert.match(code, /const z = "literal"/);
+    assert.match(code, /const sum = i \+ 2/);
+    assert.match(code, /true && false/);
+    assert.match(code, /useState as stan/);
+    assert.match(code, /from "react"/);
+  });
+
   it('protects escaped strings, template literals, regexes, and comments', () => {
     const code = transpile('const tekst = "stała \\\" prawda"; // stała\nconst wzorzec = /stała\\/prawda/i;\nconst szablon = `stała ${prawda}`;');
     assert.match(code, /"stała \\\" prawda"/);

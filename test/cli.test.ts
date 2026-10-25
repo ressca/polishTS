@@ -67,6 +67,26 @@ describe('CLI', () => {
     } finally { rmSync(dir, { recursive: true, force: true }); }
   });
 
+  it('recognizes .pltsx input and writes .tsx output', () => {
+    const dir = mkdtempSync(path.join(tmpdir(), 'polishts-'));
+    try {
+      writeFileSync(path.join(dir, 'App.pltsx'), 'eksportuj funkcja App() { zwróć <h1>Cześć</h1>; }');
+      const result = run(['App.pltsx'], dir);
+      assert.equal(result.status, 0, result.stderr);
+      assert.equal(readFileSync(path.join(dir, 'App.tsx'), 'utf8'), 'export function App() {\n  return <h1>Cześć</h1>;\n}');
+    } finally { rmSync(dir, { recursive: true, force: true }); }
+  });
+
+  it('enables TSX explicitly for .plts files', () => {
+    const dir = mkdtempSync(path.join(tmpdir(), 'polishts-'));
+    try {
+      writeFileSync(path.join(dir, 'App.plts'), 'eksportuj funkcja App() { zwróć <h1>Cześć</h1>; }');
+      const result = run(['App.plts', '--tsx'], dir);
+      assert.equal(result.status, 0, result.stderr);
+      assert.equal(readFileSync(path.join(dir, 'App.tsx'), 'utf8'), 'export function App() {\n  return <h1>Cześć</h1>;\n}');
+    } finally { rmSync(dir, { recursive: true, force: true }); }
+  });
+
   it('supports --out and --print for file input', () => {
     const dir = mkdtempSync(path.join(tmpdir(), 'polishts-'));
     try {
