@@ -39,7 +39,7 @@ jobs:
   publish:
     name: Publish to npm
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    needs: test
+    needs: [test, react-example]
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -59,3 +59,20 @@ jobs:
         run: npm run build
       - name: Publish package
         run: npm publish --access public
+
+  react-example:
+    name: Clean-install React starter
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: '24'
+      - name: Install starter dependencies
+        run: npm ci --no-audit --no-fund
+        working-directory: examples/react-vite
+      - name: Type-check and build starter
+        run: npm run build
+        working-directory: examples/react-vite

@@ -5,20 +5,24 @@ into **TypeScript** (`.ts`). It lexes the source, translates recognized Polish
 syntax in context, parses the result with Babel's TypeScript and legacy-decorator
 plugins, then prints the AST. It does not compile or emit JavaScript.
 
-The current language contract is version **0.1** (`LANGUAGE_SPEC.md`). Unknown
+The current language contract is version **0.3** (`LANGUAGE_SPEC.md`). Unknown
 TypeScript syntax is passed through unchanged when Babel accepts it; unsupported
 or invalid syntax produces a parse error. Source locations refer to the original
 `.plts` input. The translator protects comments, quoted strings, template
 literals, and regular-expression literals, and uses syntactic context for
-declarations, operators, and type names. JSX/TSX is not enabled yet.
+declarations, operators, and type names. TSX parsing is enabled explicitly or
+automatically for `.pltsx` inputs.
+
+Library callers may pin a compatible `@babel/parser` release by passing a
+`parser` adapter to `transpile(source, { parser })`; the adapter supplies its
+version label and the parser's `parse` function. The bundled parser remains the
+default. Parser grammar follows the selected Babel release, while generated
+output can be checked with the TypeScript compiler version used by the project.
 
 ## Requirements and use
 
-Supported runtime range: **Node.js 18 and newer (`>=18`)**. The package does
-not declare an `engines` field, so there is no upper bound established by its
-metadata; Node 18 is the minimum recommended version based on the current
-development dependencies. Newer versions are not individually guaranteed or
-tested by this package.
+Supported runtime range: **Node.js 18 and newer (`>=18`)**, as declared by the
+package metadata. CI checks Node 18, 20, 22, 24, and 26.
 
 Install with `npm install polishts` (or globally with
 `npm install --global polishts`). Then:
@@ -31,6 +35,35 @@ plts program.plts --print         # generated TypeScript on stdout
 cat program.plts | plts --stdin   # generated TypeScript on stdout
 plts --help
 ```
+
+### React / TSX
+
+Use `.pltsx` for PolishTS files containing JSX. The extension enables TSX parsing
+and selects `.tsx` as the default output. For other input names, pass `--tsx`;
+library callers use `transpile(source, { jsx: true })`. PolishTS preserves JSX
+for TypeScript to handle: `jsx: "react-jsx"`, `"react"`, and `"preserve"` remain
+project choices in `tsconfig.json`.
+
+The runnable [Vite + React example](examples/react-vite/) includes a `.pltsx`
+component, its generated `.tsx` counterpart, and scripts that translate before
+development, type checking, and production builds:
+
+```sh
+cd examples/react-vite
+npm install
+npm run dev
+npm run build
+```
+
+Its `tsconfig.json` uses `"jsx": "react-jsx"` and `"moduleResolution": "Bundler"`;
+the generated `src/App.tsx` is included alongside the handwritten TSX entry
+point. Set `jsx` to `"react"` or `"preserve"` if that matches an existing
+project; PolishTS leaves the JSX syntax in place for the selected TypeScript
+toolchain.
+
+The example pins exact React, Vite, TypeScript, plugin, and React type package
+versions in its manifest.
+Vite 8 requires Node.js 20.19+ or 22.12+; see the [Vite compatibility note](https://www.npmjs.com/package/create-vite).
 
 The intended file workflow is to write Polish-keyword source in a `.plts` file
 and run `plts` to create TypeScript in a `.ts` file. For example, save the
@@ -138,45 +171,35 @@ if (true && !false) {
 }
 ```
 
-Current dictionary mappings (source word → TypeScript token):
+The complete stable dictionary decisions and their contextual rules are listed
+in [`LANGUAGE_SPEC.md`](LANGUAGE_SPEC.md). The implemented core mappings include:
 
 | Area | Mappings |
 | --- | --- |
-| Declarations and types | `stała` → `const`; `zmienna` → `let`; `var` → `var`; `liczba` → `number`; `ciąg`, `łańcuch` → `string`; `logiczna` → `boolean`; `dowolny` → `any`; `nieznany` → `unknown`; `nic` → `void`; `nigdy` → `never`; `obiekt` → `object`; `symbol` → `symbol`; `duża_liczca` → `bigint` |
-| Values and operators | `prawda` → `true`; `fałsz` → `false`; `nieokreślony` → `undefined`; `i` → `&&`; `lub` → `||`; `nie` → `!`; `równa` → `===`; `różne` → `!==`; `mniejsze`, `większe`, `mniejsze_równe`, `większe_równe` → `<`, `>`, `<=`, `>=`; `przypisz` → `=`; `plus_równa`, `minus_równa`, `razy_równa`, `podziel_równo`, `modulo_równa` → `+=`, `-=`, `*=`, `/=`, `%=`; `pytajnik_kropka` → `?.`; `podwójne_pytajnik` → `??` |
-| Control flow | `jeżeli` → `if`; `inaczej` → `else`; `dla` → `for`; `dopóki` → `while`; `zrób` → `do`; `przerwij` → `break`; `kontynuuj` → `continue`; `zwróć` → `return`; `przypadku` → `case`; `domyślny` → `default` |
-| Functions and classes | `funkcja` → `function`; `asynchroniczna` → `async`; `oczekuj` → `await`; `arrow` → `=>`; `klasa` → `class`; `rozszerza` → `extends`; `konstruktor` → `constructor`; `modyfikator`, `tylko_czytelny` → `readonly`; `publiczny`, `publiczne` → `public`; `prywatny`, `prywatne` → `private`; `chroniony`, `chronione` → `protected`; `statyczny` → `static`; `abstrakcyjna` → `abstract`; `ten` → `this`; `rodzaj` → `typeof`; `instancja` → `instanceof` |
-| Types, modules, errors | `interfejs` → `interface`; `typ` → `type`; `enumeracja`, `wyliczenie` → `enum`; `importuj` → `import`; `eksportuj` → `export`; `domyślny_eksport` → `export default`; `jako` → `as`; `narzędzie` → `keyof`; `spróbuj` → `try`; `złap` → `catch`; `na_koniec` → `finally`; `rzuć` → `throw`; `błąd` → `Error`; `nowy_błąd` → `new Error` |
+| Deklaracje i typy | `stała` → `const`; `zmienna` → `let`; `liczba` → `number`; `ciąg`, `łańcuch` → `string`; `logiczna` → `boolean`; `dowolny`, `nieznany`, `nic`, `nigdy`, `obiekt`, `symbol`, `duża_liczba` → odpowiadające im typy TypeScript |
+| Wartości i operatory | `prawda`, `fałsz`, `nieokreślony`; `i`, `lub`, `nie`; `równa`, `różne`, `mniejsze`, `większe`, `mniejsze_równe`, `większe_równe`; `przypisz` i aliasy przypisań; `pytajnik_kropka`, `podwójne_pytajnik` |
+| Sterowanie przepływem | `jeżeli`, `inaczej`, `dla`, `dopóki`, `zrób`, `przerwij`, `kontynuuj`, `zwróć`, `przypadku`, `domyślny` |
+| Funkcje, klasy i moduły | `funkcja`, `asynchroniczna`, `oczekuj`, `klasa`, `rozszerza`, `implementuj`, `konstruktor`, modyfikatory klas, `interfejs`, `typ`, `enumeracja`, `importuj`, `eksportuj`, `domyślny_eksport`, `jako`, kontekstowe `z`, `narzędzie`/`klucze`, `spełnia` |
 
-The dictionary also contains several mappings that currently do not form a
-reliable PolishTS syntax: `z` is filtered out by the tokenizer's keyword
-selection; `wybierz`, `pomiń`, `częściowy`, `wymagany`, and `ogólny` map to
-lowercase `pick`, `omit`, `partial`, `required`, and `generic`; and the English
-words `switch`, `implements`, `new`, `null`, and `extends` are dictionary
-entries (with `rozszerz` also mapping to `extends`). These are substitutions,
-not implemented language constructs or type utilities. Their intended Polish
-forms/semantics are undecided. `implementuj` maps to `implements`.
+Nieobsługiwane propozycje oraz zwykłe angielskie konstrukcje TS opisuje tabela
+decyzji w specyfikacji; nie są one częścią słownika tylko dlatego, że przypominają
+alias składni.
 
 ## Pass-through and limits
 
-Strings delimited by single or double quotes, `//` comments, and `/* ... */`
-comments are copied through the keyword pass, so words inside them are not
-translated. A larger identifier is not rewritten just because it contains a
-keyword: `stalaNazwa` remains `stalaNazwa`. Other source is passed to Babel
-after keyword substitution; Babel may normalize formatting when generating
-output. Generator options such as compact output are not exposed by
-`transpile` or the CLI.
+Comments, string/regex/template literals and JSX text are preserved by the
+lexer; recognized keywords in code expressions are translated. JSX is enabled
+only in TSX mode, and its tags/attributes remain intact. Babel may normalize
+formatting when generating output. PolishTS parses but does not type-check the
+result; use `tsc --noEmit` for type checking. See [`LANGUAGE_SPEC.md`](LANGUAGE_SPEC.md)
+for contextual rules and known limits.
 
-The tokenizer is deliberately small: template literals, regular-expression
-literals, and full TypeScript lexical rules are not handled as protected token
-forms. Do not rely on Polish words inside these forms remaining unchanged. The
-code is parsed, not type-checked, and output is not JavaScript. The transformer
-visitor is empty, so no AST-level transforms run. Dictionary entries are
-implementation data; exact supported syntax beyond the demonstrated and valid
-substitutions is undecided.
-
-`npm test` runs the tests and `npm run build` emits the package files to `dist`.
-`npm run prepack` builds before packing.
+`npm test` runs unit, fixture, property, regression, TS/TSX compilation and
+React contract tests. `npm run package:smoke` installs and exercises a packed
+tarball. `npm run benchmark` reports a repeatable large-file timing (informative,
+not yet a CI threshold). Release and compatibility policy lives in
+[`docs/releasing.md`](docs/releasing.md); changes are tracked in
+[`CHANGELOG.md`](CHANGELOG.md).
 
 ## CI and npm publishing
 
