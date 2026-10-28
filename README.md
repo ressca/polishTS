@@ -1,5 +1,7 @@
 # PolishTS
 
+<p align="center"><img src="assets/plts-logo.svg" alt="PolishTS PLTS logo" width="112" /></p>
+
 **PolishTS** is a source-to-source translator for a Polish-keyword subset of TypeScript. It reads `.plts` files and emits `.ts` files. In TSX mode it reads `.pltsx` and emits `.tsx`. It does not emit JavaScript, type-check programs, or replace `tsc`, React, or a bundler.
 
 The current language contract is **0.3** (`LANGUAGE_SPEC.md`; Polish translation: [`LANGUAGE_SPEC.pl.md`](LANGUAGE_SPEC.pl.md)). This release uses a custom Unicode-aware lexer and context-sensitive token translator, Babel's TypeScript parser, and Babel's code generator. Parser errors are mapped back to positions in the original source. The translator is not a full Polish grammar or a TypeScript AST-to-AST translator; see the documented limitations before adopting it for a large codebase.

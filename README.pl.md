@@ -1,5 +1,7 @@
 # PolishTS
 
+<p align="center"><img src="assets/plts-logo.svg" alt="PolishTS PLTS logo" width="112" /></p>
+
 **PolishTS** to translator źródło-do-źródła dla podzbioru TypeScript ze słowami składniowymi po polsku. Czyta pliki `.plts` i emituje `.ts`. W trybie TSX czyta `.pltsx` i emituje `.tsx`. Nie generuje JavaScriptu, nie sprawdza typów i nie zastępuje `tsc`, Reacta ani bundlera.
 
 Bieżący kontrakt języka ma wersję **0.3** (`LANGUAGE_SPEC.pl.md`; angielski dokument: [`LANGUAGE_SPEC.md`](LANGUAGE_SPEC.md)). Wydanie używa własnego, świadomego Unicode lexera i kontekstowego translatora tokenów, parsera TypeScript z Babel oraz generatora kodu Babel. Błędy parsera są mapowane na pozycje w oryginalnym źródle. Translator nie jest pełną polską gramatyką ani translacją AST TypeScript na AST TypeScript; przed użyciem w dużym projekcie zapoznaj się z ograniczeniami.
