@@ -32,7 +32,7 @@ try {
   const apiSmoke = path.join(consumer, 'api-smoke.mjs');
   writeFileSync(apiSmoke, [
     "import assert from 'node:assert/strict';",
-    "import { LANGUAGE_VERSION, transpile } from 'polishts';",
+    "import { LANGUAGE_VERSION, transpile } from '@ressca/polishts';",
     "assert.equal(LANGUAGE_VERSION, '0.3');",
     "assert.equal(transpile('stała wynik przypisz 42'), 'const wynik = 42;');",
     "assert.match(transpile('eksportuj funkcja App() { zwróć <div>Cześć</div>; }', { jsx: true }), /<div>Cześć<\\/div>/);",

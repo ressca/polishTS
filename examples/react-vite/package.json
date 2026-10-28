@@ -11,7 +11,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "polishts": "file:../..",
+    "@ressca/polishts": "file:../..",
     "react": "19.3.1",
     "react-dom": "19.3.1"
   },

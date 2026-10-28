@@ -3,6 +3,7 @@ name: CI and npm publish
 on:
   push:
     branches: [dev, main]
+    tags: ['v*']
   pull_request:
     branches: [dev, main]
 
@@ -36,30 +37,6 @@ jobs:
       - name: Check package contents
         run: npm pack --dry-run
 
-  publish:
-    name: Publish to npm
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    needs: [test, react-example]
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      id-token: write
-    steps:
-      - name: Check out repository
-        uses: actions/checkout@v7
-      - name: Set up Node.js and npm registry
-        uses: actions/setup-node@v6
-        with:
-          node-version: '24'
-          registry-url: https://registry.npmjs.org
-          package-manager-cache: false
-      - name: Install dependencies
-        run: npm ci
-      - name: Build package
-        run: npm run build
-      - name: Publish package
-        run: npm publish --access public
-
   react-example:
     name: Clean-install React starter
     runs-on: ubuntu-latest
@@ -76,3 +53,39 @@ jobs:
       - name: Type-check and build starter
         run: npm run build
         working-directory: examples/react-vite
+
+  publish:
+    name: Publish to npm
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+    needs: [test, react-example]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+      - name: Set up Node.js and npm registry
+        uses: actions/setup-node@v6
+        with:
+          node-version: '24'
+          registry-url: https://registry.npmjs.org
+          package-manager-cache: false
+      - name: Check release tag matches package version
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          TAG_VERSION="${RELEASE_TAG#v}"
+          PACKAGE_VERSION="$(node -e "process.stdout.write(JSON.parse(require('node:fs').readFileSync('package.json', 'utf8')).version)")"
+          if [ "$TAG_VERSION" != "$PACKAGE_VERSION" ]; then
+            echo "Release tag v$TAG_VERSION does not match package.json version $PACKAGE_VERSION"
+            exit 1
+          fi
+      - name: Install npm with trusted publishing support
+        run: npm install --global npm@11.5.1
+      - name: Install dependencies
+        run: npm ci
+      - name: Build package
+        run: npm run build
+      - name: Publish package
+        run: npm publish --access public --provenance
