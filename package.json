@@ -14,6 +14,7 @@
   },
   "files": [
     "dist",
+    "assets/plts-logo.svg",
     "README.md",
     "README.pl.md",
     "LANGUAGE_SPEC.md",
@@ -26,6 +27,7 @@
     "examples/retry.plts",
     "examples/tasks.plts",
     "examples/react-vite/index.html",
+    "examples/react-vite/public/plts.svg",
     "examples/react-vite/package.json",
     "examples/react-vite/package-lock.json",
     "examples/react-vite/polishts.config.json",

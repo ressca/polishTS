@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" role="img" aria-labelledby="title">
+  <title id="title">PLTS logo</title>
+  <rect x="2" y="2" width="96" height="96" rx="6" fill="#d40c1a" />
+  <text x="94" y="91" fill="#fff" font-family="Arial, Helvetica, sans-serif" font-size="27" font-weight="700" letter-spacing="-1.8" text-anchor="end">PLTS</text>
+</svg>
