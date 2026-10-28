@@ -2,25 +2,25 @@
 
 <p align="center"><img src="assets/plts-logo.svg" alt="PolishTS PLTS logo" width="112" /></p>
 
+<p align="center"><a href="https://www.npmjs.com/package/@ressca/polishts?activeTab=readme">View PolishTS on npm</a></p>
+
 **PolishTS** is a source-to-source translator for a Polish-keyword subset of TypeScript. It reads `.plts` files and emits `.ts` files. In TSX mode it reads `.pltsx` and emits `.tsx`. It does not emit JavaScript, type-check programs, or replace `tsc`, React, or a bundler.
 
 The current language contract is **0.3** (`LANGUAGE_SPEC.md`; Polish translation: [`LANGUAGE_SPEC.pl.md`](LANGUAGE_SPEC.pl.md)). This release uses a custom Unicode-aware lexer and context-sensitive token translator, Babel's TypeScript parser, and Babel's code generator. Parser errors are mapped back to positions in the original source. The translator is not a full Polish grammar or a TypeScript AST-to-AST translator; see the documented limitations before adopting it for a large codebase.
 
 - Polish documentation: [`README.pl.md`](README.pl.md)
 - Language and dictionary contract: [`LANGUAGE_SPEC.md`](LANGUAGE_SPEC.md)
-- Release notes: [`CHANGELOG.md`](CHANGELOG.md)
-- Release procedure: [`docs/RELEASING.md`](docs/RELEASING.md)
 
 ## Requirements
 
-- Node.js `>=18` for the `polishts` package and CLI.
+- Node.js `>=18` for the `@ressca/polishts` package and CLI.
 - The React/Vite starter uses Vite 8 and therefore needs Node.js 20.19+ or 22.12+.
 - The parser accepts the TypeScript syntax supported by the resolved `@babel/parser` version. Babel parser compatibility is not the same as TypeScript compiler compatibility; use `tsc` to type-check generated files.
 
 ## Install and use the CLI
 
 ```sh
-npm install polishts
+npm install @ressca/polishts
 
 plts src/program.plts                 # writes ./program.ts
 plts src/program.plts --out out.ts    # writes the selected output path
@@ -133,7 +133,7 @@ The starter in [`examples/react-vite/`](examples/react-vite/) contains a complet
 ## Use the library
 
 ```ts
-import { transpile, TranspileError, LANGUAGE_VERSION } from 'polishts';
+import { transpile, TranspileError, LANGUAGE_VERSION } from '@ressca/polishts';
 
 console.log(LANGUAGE_VERSION); // "0.3"
 const output = transpile('stała wynik: liczba przypisz 42');
@@ -164,53 +164,54 @@ try {
 
 The table lists every entry currently present in the implementation dictionary. An entry is a candidate translation, not an unconditional textual replacement: the lexer and translator apply contextual rules to selected categories. In particular, the single-letter conjunction `i` and the module word `z` have special heuristics. Names in declaration, property, parameter, import-alias, and JSX positions are intended to remain unchanged; the implementation is heuristic, so check [`LANGUAGE_SPEC.md`](LANGUAGE_SPEC.md) for known boundaries.
 
-| Polish spelling | TypeScript spelling | Notes |
-| --- | --- | --- |
-| `stała` | `const` | Variable declaration |
-| `zmienna` | `let` | Variable declaration |
-| `var` | `var` | Accepted unchanged |
-| `liczba` | `number` | Primitive type position |
-| `ciąg`, `łańcuch` | `string` | Primitive type position |
-| `logiczna` | `boolean` | Primitive type position |
-| `dowolny` | `any` | Primitive type position |
-| `nieznany` | `unknown` | Primitive type position |
-| `nic` | `void` | Primitive type position |
-| `nigdy` | `never` | Primitive type position |
-| `obiekt` | `object` | Primitive type position |
-| `symbol` | `symbol` | Accepted unchanged |
-| `duża_liczba` | `bigint` | Primitive type position |
-| `prawda`, `fałsz` | `true`, `false` | Boolean literal position |
-| `nieokreślony` | `undefined` | Value position |
-| `i`, `lub`, `nie` | `&&`, `||`, `!` | Logical operator/value positions; `i` is heuristic |
-| `równa`, `różne` | `===`, `!==` | Comparison operator positions |
-| `mniejsze`, `większe` | `<`, `>` | Comparison operator positions |
-| `mniejsze_równe`, `większe_równe` | `<=`, `>=` | Comparison operator positions |
-| `przypisz` | `=` | Assignment |
-| `plus_równa`, `minus_równa`, `razy_równa` | `+=`, `-=`, `*=` | Compound assignment |
-| `podziel_równo`, `modulo_równa` | `/=`, `%=` | Compound assignment |
-| `pytajnik_kropka`, `podwójne_pytajnik` | `?.`, `??` | Optional chaining and nullish coalescing |
-| `jeżeli`, `inaczej` | `if`, `else` | Conditional statements |
-| `dla`, `dopóki`, `zrób` | `for`, `while`, `do` | Loops |
-| `przerwij`, `kontynuuj`, `zwróć` | `break`, `continue`, `return` | Control flow |
-| `przypadku`, `domyślny` | `case`, `default` | `domyślny` is recognized in a `default:`-like position |
-| `funkcja`, `asynchroniczna`, `oczekuj` | `function`, `async`, `await` | Function syntax |
-| `klasa`, `rozszerza`, `implementuj` | `class`, `extends`, `implements` | Class syntax |
-| `konstruktor` | `constructor` | Class member |
-| `modyfikator`, `tylko_czytelny` | `readonly` | Modifier |
-| `publiczny`, `publiczne` | `public` | Modifier |
-| `prywatny`, `prywatne` | `private` | Modifier |
-| `chroniony`, `chronione` | `protected` | Modifier |
-| `statyczny`, `abstrakcyjna` | `static`, `abstract` | Class modifiers |
-| `ten`, `rodzaj`, `instancja` | `this`, `typeof`, `instanceof` | Candidate token translations |
-| `interfejs`, `typ` | `interface`, `type` | Declarations |
-| `enumeracja`, `wyliczenie` | `enum` | Two aliases |
-| `importuj`, `eksportuj` | `import`, `export` | Module declarations |
-| `domyślny_eksport` | `export default` | Default export declaration |
-| `jako` | `as` | Alias/type assertion positions |
-| `z` | `from` | Recognized heuristically in import/export module clauses |
-| `narzędzie`, `klucze` | `keyof` | Type operator positions |
-| `spełnia` | `satisfies` | TypeScript `satisfies` operator |
-| `spróbuj`, `złap`, `na_koniec`, `rzuć` | `try`, `catch`, `finally`, `throw` | Exception handling |
+
+| Polish spelling                              | TypeScript spelling                | Notes                                                    |
+| -------------------------------------------- | ---------------------------------- | -------------------------------------------------------- |
+| `stała`                                     | `const`                            | Variable declaration                                     |
+| `zmienna`                                    | `let`                              | Variable declaration                                     |
+| `var`                                        | `var`                              | Accepted unchanged                                       |
+| `liczba`                                     | `number`                           | Primitive type position                                  |
+| `ciąg`, `łańcuch`                         | `string`                           | Primitive type position                                  |
+| `logiczna`                                   | `boolean`                          | Primitive type position                                  |
+| `dowolny`                                    | `any`                              | Primitive type position                                  |
+| `nieznany`                                   | `unknown`                          | Primitive type position                                  |
+| `nic`                                        | `void`                             | Primitive type position                                  |
+| `nigdy`                                      | `never`                            | Primitive type position                                  |
+| `obiekt`                                     | `object`                           | Primitive type position                                  |
+| `symbol`                                     | `symbol`                           | Accepted unchanged                                       |
+| `duża_liczba`                               | `bigint`                           | Primitive type position                                  |
+| `prawda`, `fałsz`                           | `true`, `false`                    | Boolean literal position                                 |
+| `nieokreślony`                              | `undefined`                        | Value position                                           |
+| `i`, `lub`, `nie`                            | `&&`, `                            |                                                          |
+| `równa`, `różne`                          | `===`, `!==`                       | Comparison operator positions                            |
+| `mniejsze`, `większe`                       | `<`, `>`                           | Comparison operator positions                            |
+| `mniejsze_równe`, `większe_równe`         | `<=`, `>=`                         | Comparison operator positions                            |
+| `przypisz`                                   | `=`                                | Assignment                                               |
+| `plus_równa`, `minus_równa`, `razy_równa` | `+=`, `-=`, `*=`                   | Compound assignment                                      |
+| `podziel_równo`, `modulo_równa`            | `/=`, `%=`                         | Compound assignment                                      |
+| `pytajnik_kropka`, `podwójne_pytajnik`      | `?.`, `??`                         | Optional chaining and nullish coalescing                 |
+| `jeżeli`, `inaczej`                         | `if`, `else`                       | Conditional statements                                   |
+| `dla`, `dopóki`, `zrób`                    | `for`, `while`, `do`               | Loops                                                    |
+| `przerwij`, `kontynuuj`, `zwróć`           | `break`, `continue`, `return`      | Control flow                                             |
+| `przypadku`, `domyślny`                     | `case`, `default`                  | `domyślny` is recognized in a `default:`-like position  |
+| `funkcja`, `asynchroniczna`, `oczekuj`       | `function`, `async`, `await`       | Function syntax                                          |
+| `klasa`, `rozszerza`, `implementuj`          | `class`, `extends`, `implements`   | Class syntax                                             |
+| `konstruktor`                                | `constructor`                      | Class member                                             |
+| `modyfikator`, `tylko_czytelny`              | `readonly`                         | Modifier                                                 |
+| `publiczny`, `publiczne`                     | `public`                           | Modifier                                                 |
+| `prywatny`, `prywatne`                       | `private`                          | Modifier                                                 |
+| `chroniony`, `chronione`                     | `protected`                        | Modifier                                                 |
+| `statyczny`, `abstrakcyjna`                  | `static`, `abstract`               | Class modifiers                                          |
+| `ten`, `rodzaj`, `instancja`                 | `this`, `typeof`, `instanceof`     | Candidate token translations                             |
+| `interfejs`, `typ`                           | `interface`, `type`                | Declarations                                             |
+| `enumeracja`, `wyliczenie`                   | `enum`                             | Two aliases                                              |
+| `importuj`, `eksportuj`                      | `import`, `export`                 | Module declarations                                      |
+| `domyślny_eksport`                          | `export default`                   | Default export declaration                               |
+| `jako`                                       | `as`                               | Alias/type assertion positions                           |
+| `z`                                          | `from`                             | Recognized heuristically in import/export module clauses |
+| `narzędzie`, `klucze`                       | `keyof`                            | Type operator positions                                  |
+| `spełnia`                                   | `satisfies`                        | TypeScript`satisfies` operator                           |
+| `spróbuj`, `złap`, `na_koniec`, `rzuć`    | `try`, `catch`, `finally`, `throw` | Exception handling                                       |
 
 Standard TypeScript forms such as `new`, `null`, `switch`, `as`, `implements`, `from`, `extends`, and `=>` can be written in English and are not Polish dictionary aliases. The current dictionary does **not** include proposed utility-type translations such as `wybierz` → `Pick` or `ogólny` → `generic`.
 

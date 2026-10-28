@@ -2,25 +2,25 @@
 
 <p align="center"><img src="assets/plts-logo.svg" alt="PolishTS PLTS logo" width="112" /></p>
 
+<p align="center"><a href="https://www.npmjs.com/package/@ressca/polishts?activeTab=readme">PolishTS w npm</a></p>
+
 **PolishTS** to translator źródło-do-źródła dla podzbioru TypeScript ze słowami składniowymi po polsku. Czyta pliki `.plts` i emituje `.ts`. W trybie TSX czyta `.pltsx` i emituje `.tsx`. Nie generuje JavaScriptu, nie sprawdza typów i nie zastępuje `tsc`, Reacta ani bundlera.
 
 Bieżący kontrakt języka ma wersję **0.3** (`LANGUAGE_SPEC.pl.md`; angielski dokument: [`LANGUAGE_SPEC.md`](LANGUAGE_SPEC.md)). Wydanie używa własnego, świadomego Unicode lexera i kontekstowego translatora tokenów, parsera TypeScript z Babel oraz generatora kodu Babel. Błędy parsera są mapowane na pozycje w oryginalnym źródle. Translator nie jest pełną polską gramatyką ani translacją AST TypeScript na AST TypeScript; przed użyciem w dużym projekcie zapoznaj się z ograniczeniami.
 
 - Dokumentacja angielska: [`README.md`](README.md)
 - Kontrakt języka i słownika: [`LANGUAGE_SPEC.pl.md`](LANGUAGE_SPEC.pl.md)
-- Historia zmian: [`CHANGELOG.pl.md`](CHANGELOG.pl.md)
-- Proces wydania: [`docs/RELEASING.pl.md`](docs/RELEASING.pl.md)
 
 ## Wymagania
 
-- Node.js `>=18` dla pakietu `polishts` i CLI.
+- Node.js `>=18` dla pakietu `@ressca/polishts` i CLI.
 - Starter React/Vite używa Vite 8, więc wymaga Node.js 20.19+ lub 22.12+.
 - Parser akceptuje składnię TypeScript obsługiwaną przez rozwiązaną wersję `@babel/parser`. Zgodność parsera Babel nie jest tym samym co zgodność kompilatora TypeScript; do sprawdzania wynikowych plików używaj `tsc`.
 
 ## Instalacja i CLI
 
 ```sh
-npm install polishts
+npm install @ressca/polishts
 
 plts src/program.plts                 # zapisuje ./program.ts
 plts src/program.plts --out out.ts    # zapisuje wskazany plik
@@ -133,7 +133,7 @@ Starter w [`examples/react-vite/`](examples/react-vite/) zawiera kompletną, dzi
 ## Użycie biblioteki
 
 ```ts
-import { transpile, TranspileError, LANGUAGE_VERSION } from 'polishts';
+import { transpile, TranspileError, LANGUAGE_VERSION } from '@ressca/polishts';
 
 console.log(LANGUAGE_VERSION); // "0.3"
 const output = transpile('stała wynik: liczba przypisz 42');
@@ -164,53 +164,54 @@ try {
 
 Tabela zawiera wszystkie wpisy obecne w słowniku implementacji. Wpis jest kandydatem do translacji, a nie bezwarunkową zamianą tekstową: lexer i translator stosują reguły kontekstowe dla wybranych grup. Jednoznakowe `i` i modułowe `z` mają specjalne heurystyki. Nazwy w pozycjach deklaracji, właściwości, parametrów, aliasów importu i JSX powinny pozostać niezmienione; implementacja jest heurystyczna, więc granice opisuje [`LANGUAGE_SPEC.pl.md`](LANGUAGE_SPEC.pl.md).
 
-| Forma polska | Forma TypeScript | Uwagi |
-| --- | --- | --- |
-| `stała` | `const` | Deklaracja zmiennej |
-| `zmienna` | `let` | Deklaracja zmiennej |
-| `var` | `var` | Akceptowane bez zmian |
-| `liczba` | `number` | Pozycja typu prymitywnego |
-| `ciąg`, `łańcuch` | `string` | Pozycja typu prymitywnego |
-| `logiczna` | `boolean` | Pozycja typu prymitywnego |
-| `dowolny` | `any` | Pozycja typu prymitywnego |
-| `nieznany` | `unknown` | Pozycja typu prymitywnego |
-| `nic` | `void` | Pozycja typu prymitywnego |
-| `nigdy` | `never` | Pozycja typu prymitywnego |
-| `obiekt` | `object` | Pozycja typu prymitywnego |
-| `symbol` | `symbol` | Akceptowane bez zmian |
-| `duża_liczba` | `bigint` | Pozycja typu prymitywnego |
-| `prawda`, `fałsz` | `true`, `false` | Pozycja literału logicznego |
-| `nieokreślony` | `undefined` | Pozycja wartości |
-| `i`, `lub`, `nie` | `&&`, `||`, `!` | Operatory logiczne/wartości; `i` używa heurystyki |
-| `równa`, `różne` | `===`, `!==` | Pozycje operatorów porównania |
-| `mniejsze`, `większe` | `<`, `>` | Pozycje operatorów porównania |
-| `mniejsze_równe`, `większe_równe` | `<=`, `>=` | Pozycje operatorów porównania |
-| `przypisz` | `=` | Przypisanie |
-| `plus_równa`, `minus_równa`, `razy_równa` | `+=`, `-=`, `*=` | Przypisanie z operacją |
-| `podziel_równo`, `modulo_równa` | `/=`, `%=` | Przypisanie z operacją |
-| `pytajnik_kropka`, `podwójne_pytajnik` | `?.`, `??` | Optional chaining i nullish coalescing |
-| `jeżeli`, `inaczej` | `if`, `else` | Instrukcje warunkowe |
-| `dla`, `dopóki`, `zrób` | `for`, `while`, `do` | Pętle |
-| `przerwij`, `kontynuuj`, `zwróć` | `break`, `continue`, `return` | Sterowanie przepływem |
-| `przypadku`, `domyślny` | `case`, `default` | `domyślny` jest rozpoznawane w pozycji podobnej do `default:` |
-| `funkcja`, `asynchroniczna`, `oczekuj` | `function`, `async`, `await` | Składnia funkcji |
-| `klasa`, `rozszerza`, `implementuj` | `class`, `extends`, `implements` | Składnia klas |
-| `konstruktor` | `constructor` | Element klasy |
-| `modyfikator`, `tylko_czytelny` | `readonly` | Modyfikator |
-| `publiczny`, `publiczne` | `public` | Modyfikator |
-| `prywatny`, `prywatne` | `private` | Modyfikator |
-| `chroniony`, `chronione` | `protected` | Modyfikator |
-| `statyczny`, `abstrakcyjna` | `static`, `abstract` | Modyfikatory klasy |
-| `ten`, `rodzaj`, `instancja` | `this`, `typeof`, `instanceof` | Kandydaci do translacji tokenu |
-| `interfejs`, `typ` | `interface`, `type` | Deklaracje |
-| `enumeracja`, `wyliczenie` | `enum` | Dwa aliasy |
-| `importuj`, `eksportuj` | `import`, `export` | Deklaracje modułu |
-| `domyślny_eksport` | `export default` | Domyślny eksport |
-| `jako` | `as` | Alias/asercja typu |
-| `z` | `from` | Heurystycznie rozpoznawane w klauzuli import/export |
-| `narzędzie`, `klucze` | `keyof` | Operator typów |
-| `spełnia` | `satisfies` | Operator TypeScript `satisfies` |
-| `spróbuj`, `złap`, `na_koniec`, `rzuć` | `try`, `catch`, `finally`, `throw` | Obsługa wyjątków |
+
+| Forma polska                                 | Forma TypeScript                   | Uwagi                                                          |
+| -------------------------------------------- | ---------------------------------- | -------------------------------------------------------------- |
+| `stała`                                     | `const`                            | Deklaracja zmiennej                                            |
+| `zmienna`                                    | `let`                              | Deklaracja zmiennej                                            |
+| `var`                                        | `var`                              | Akceptowane bez zmian                                          |
+| `liczba`                                     | `number`                           | Pozycja typu prymitywnego                                      |
+| `ciąg`, `łańcuch`                         | `string`                           | Pozycja typu prymitywnego                                      |
+| `logiczna`                                   | `boolean`                          | Pozycja typu prymitywnego                                      |
+| `dowolny`                                    | `any`                              | Pozycja typu prymitywnego                                      |
+| `nieznany`                                   | `unknown`                          | Pozycja typu prymitywnego                                      |
+| `nic`                                        | `void`                             | Pozycja typu prymitywnego                                      |
+| `nigdy`                                      | `never`                            | Pozycja typu prymitywnego                                      |
+| `obiekt`                                     | `object`                           | Pozycja typu prymitywnego                                      |
+| `symbol`                                     | `symbol`                           | Akceptowane bez zmian                                          |
+| `duża_liczba`                               | `bigint`                           | Pozycja typu prymitywnego                                      |
+| `prawda`, `fałsz`                           | `true`, `false`                    | Pozycja literału logicznego                                   |
+| `nieokreślony`                              | `undefined`                        | Pozycja wartości                                              |
+| `i`, `lub`, `nie`                            | `&&`, `                            |                                                                |
+| `równa`, `różne`                          | `===`, `!==`                       | Pozycje operatorów porównania                                |
+| `mniejsze`, `większe`                       | `<`, `>`                           | Pozycje operatorów porównania                                |
+| `mniejsze_równe`, `większe_równe`         | `<=`, `>=`                         | Pozycje operatorów porównania                                |
+| `przypisz`                                   | `=`                                | Przypisanie                                                    |
+| `plus_równa`, `minus_równa`, `razy_równa` | `+=`, `-=`, `*=`                   | Przypisanie z operacją                                        |
+| `podziel_równo`, `modulo_równa`            | `/=`, `%=`                         | Przypisanie z operacją                                        |
+| `pytajnik_kropka`, `podwójne_pytajnik`      | `?.`, `??`                         | Optional chaining i nullish coalescing                         |
+| `jeżeli`, `inaczej`                         | `if`, `else`                       | Instrukcje warunkowe                                           |
+| `dla`, `dopóki`, `zrób`                    | `for`, `while`, `do`               | Pętle                                                         |
+| `przerwij`, `kontynuuj`, `zwróć`           | `break`, `continue`, `return`      | Sterowanie przepływem                                         |
+| `przypadku`, `domyślny`                     | `case`, `default`                  | `domyślny` jest rozpoznawane w pozycji podobnej do `default:` |
+| `funkcja`, `asynchroniczna`, `oczekuj`       | `function`, `async`, `await`       | Składnia funkcji                                              |
+| `klasa`, `rozszerza`, `implementuj`          | `class`, `extends`, `implements`   | Składnia klas                                                 |
+| `konstruktor`                                | `constructor`                      | Element klasy                                                  |
+| `modyfikator`, `tylko_czytelny`              | `readonly`                         | Modyfikator                                                    |
+| `publiczny`, `publiczne`                     | `public`                           | Modyfikator                                                    |
+| `prywatny`, `prywatne`                       | `private`                          | Modyfikator                                                    |
+| `chroniony`, `chronione`                     | `protected`                        | Modyfikator                                                    |
+| `statyczny`, `abstrakcyjna`                  | `static`, `abstract`               | Modyfikatory klasy                                             |
+| `ten`, `rodzaj`, `instancja`                 | `this`, `typeof`, `instanceof`     | Kandydaci do translacji tokenu                                 |
+| `interfejs`, `typ`                           | `interface`, `type`                | Deklaracje                                                     |
+| `enumeracja`, `wyliczenie`                   | `enum`                             | Dwa aliasy                                                     |
+| `importuj`, `eksportuj`                      | `import`, `export`                 | Deklaracje modułu                                             |
+| `domyślny_eksport`                          | `export default`                   | Domyślny eksport                                              |
+| `jako`                                       | `as`                               | Alias/asercja typu                                             |
+| `z`                                          | `from`                             | Heurystycznie rozpoznawane w klauzuli import/export            |
+| `narzędzie`, `klucze`                       | `keyof`                            | Operator typów                                                |
+| `spełnia`                                   | `satisfies`                        | Operator TypeScript`satisfies`                                 |
+| `spróbuj`, `złap`, `na_koniec`, `rzuć`    | `try`, `catch`, `finally`, `throw` | Obsługa wyjątków                                            |
 
 Standardowe formy TypeScript takie jak `new`, `null`, `switch`, `as`, `implements`, `from`, `extends` i `=>` można zapisywać po angielsku; nie są polskimi aliasami słownika. Bieżący słownik nie zawiera proponowanych tłumaczeń utility types, np. `wybierz` → `Pick` ani `ogólny` → `generic`.
 
