@@ -28,6 +28,7 @@
     "examples/react-vite/index.html",
     "examples/react-vite/package.json",
     "examples/react-vite/package-lock.json",
+    "examples/react-vite/polishts.config.json",
     "examples/react-vite/src",
     "examples/react-vite/tsconfig.json",
     "examples/react-vite/vite.config.ts"

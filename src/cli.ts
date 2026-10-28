@@ -2,6 +2,7 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { transpile, TranspileError } from './index.js';
+import { translateProject } from './project.js';
 
 function showHelp(): void {
   console.log(`
@@ -13,6 +14,7 @@ Usage:
   plts <input> --print
   plts <input.pltsx> [output.tsx]
   plts <input> --tsx [--out output.tsx]
+  plts --project
   plts --stdin
 
 Options:
@@ -20,6 +22,7 @@ Options:
   --out     Write to the given output path (defaults to the input basename in the current directory)
   --print   Write generated code to stdout instead of a file
   --tsx     Parse as TSX and preserve JSX in the output
+  --project Translate all .plts/.pltsx files in the configured project to ./pltsxGenerated
   --help    Show this help message
 
 Examples:
@@ -29,6 +32,7 @@ Examples:
   plts program.plts --print
   plts App.pltsx --out App.tsx
   plts App.plts --tsx --out App.tsx
+  plts --project              Translate the project into ./pltsxGenerated
   plts program.plts dist/out.ts  Write to dist/out.ts
   plts --stdin < program.plts
 `);
@@ -61,11 +65,12 @@ function main(): void {
   const stdinMode = args.includes('--stdin');
   const printMode = args.includes('--print');
   const tsxMode = args.includes('--tsx');
+  const projectMode = args.includes('--project');
   let outputOption: string | undefined;
   const positional: string[] = [];
   for (let i = 0; i < args.length; i++) {
     const arg = args[i]!;
-    if (arg === '--stdin' || arg === '--print' || arg === '--tsx') continue;
+    if (arg === '--stdin' || arg === '--print' || arg === '--tsx' || arg === '--project') continue;
     if (arg === '--out') {
       const value = args[++i];
       if (!value || value.startsWith('--')) {
@@ -87,6 +92,23 @@ function main(): void {
       return;
     }
     positional.push(arg);
+  }
+
+  if (projectMode && (stdinMode || printMode || tsxMode || outputOption || positional.length > 0)) {
+    console.error('Error: --project cannot be combined with file, stdin, print, TSX, or output options');
+    process.exitCode = 1;
+    return;
+  }
+
+  if (projectMode) {
+    try {
+      const result = translateProject();
+      const outputPath = path.relative(process.cwd(), result.outputDirectory) || '.';
+      console.log(`Project translated: ${result.sourceFiles} Polish source file(s), ${result.copiedFiles} copied file(s) -> ${outputPath}`);
+    } catch (error) {
+      fail(error);
+    }
+    return;
   }
 
   if (stdinMode && (positional.length || outputOption || printMode)) {

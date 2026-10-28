@@ -4,7 +4,7 @@
   "version": "1.0.0",
   "type": "module",
   "scripts": {
-    "translate": "plts src/App.pltsx --out src/App.tsx",
+    "translate": "plts --project",
     "dev": "npm run translate && vite",
     "typecheck": "npm run translate && tsc --noEmit",
     "build": "npm run translate && tsc --noEmit && vite build",
