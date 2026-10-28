@@ -24,6 +24,7 @@ plts src/program.plts                 # zapisuje ./program.ts
 plts src/program.plts --out out.ts    # zapisuje wskazany plik
 plts src/program.plts --print         # wypisuje TypeScript na stdout
 cat src/program.plts | plts --stdin   # czyta źródło ze stdin
+plts --project                        # tłumaczy wszystkie źródła projektu
 plts --help
 ```
 
@@ -35,6 +36,97 @@ plts src/App.plts --tsx --out App.tsx
 ```
 
 `--stdin` i `--print` wypisują wygenerowany kod na stdout. Tryb plikowy podaje ścieżkę wyniku. Błędy trafiają na stderr i kończą proces niezerowym kodem.
+
+### Translacja projektu
+
+Uruchom `plts --project` w katalogu głównym projektu, aby znaleźć wszystkie pliki `.plts` i `.pltsx` w skonfigurowanych ścieżkach. Domyślnie PolishTS skanuje `src/` i zapisuje lustrzane drzewo projektu w `pltsxGenerated/`. Polskie źródła zamienia na `.ts`/`.tsx`; pozostałe pliki z katalogu wejściowego, np. zwykły TypeScript, CSS i obrazy, kopiuje, aby zachować działanie importów względnych. Jeśli źródło `.plts`/`.pltsx` i plik `.ts`/`.tsx` wskazują tę samą ścieżkę wynikową, wynik powstaje ze źródła polskiego.
+
+Utwórz `polishts.config.json`, aby zmienić ścieżki wejściowe albo katalog wyjściowy:
+
+```json
+{
+  "include": ["src"],
+  "exclude": ["src/fixtures"],
+  "outDir": "pltsxGenerated"
+}
+```
+
+`include` i `exclude` to ścieżki względem katalogu głównego projektu; katalogi są skanowane rekurencyjnie. Katalog wynikowy jest zastępowany przy każdym uruchomieniu tylko wtedy, gdy PolishTS wcześniej go utworzył i oznaczył. Dodaj skonfigurowany katalog wynikowy do `.gitignore`. Przykład React/Vite pokazuje ten przepływ: skrypt `translate` uruchamia `plts --project`, a Vite i TypeScript korzystają z `pltsxGenerated/`.
+
+### Konfiguracja React i Vite
+
+Trzymaj polskie źródła i zasoby w `src/`. Vite powinien ładować wygenerowany plik wejściowy, a skrypty projektu tłumaczyć pliki przed uruchomieniem Vite lub TypeScriptu:
+
+Odpowiedni fragment `package.json`:
+
+```json
+{
+  "scripts": {
+    "translate": "plts --project",
+    "dev": "npm run translate && vite",
+    "typecheck": "npm run translate && tsc --noEmit",
+    "build": "npm run translate && tsc --noEmit && vite build"
+  }
+}
+```
+
+Konfiguracja projektu skanuje całe `src/`; dodanie kolejnego pliku `.pltsx` nie wymaga zmiany polecenia:
+
+Plik `polishts.config.json`:
+
+```json
+{
+  "include": ["src"],
+  "outDir": "pltsxGenerated"
+}
+```
+
+Wskaż w HTML Vite'a plik wejściowy z lustrzanego drzewa wynikowego:
+
+Dodaj ten wpis do `index.html`:
+
+```html
+<script type="module" src="/pltsxGenerated/src/main.tsx"></script>
+```
+
+Jeśli projekt React/Vite używa aliasu importów `@/`, skieruj zarówno Vite, jak i TypeScript do wygenerowanego drzewa `src/`:
+
+Plik `vite.config.ts`:
+
+```ts
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+import react from '@vitejs/plugin-react';
+import { defineConfig } from 'vite';
+
+const projectRoot = path.dirname(fileURLToPath(import.meta.url));
+
+export default defineConfig({
+  plugins: [react()],
+  resolve: {
+    alias: { '@': path.resolve(projectRoot, './pltsxGenerated/src') },
+  },
+});
+```
+
+Dodaj alias i katalog wynikowy do `tsconfig.app.json` (lub `tsconfig.json`):
+
+```json
+{
+  "compilerOptions": {
+    "paths": { "@/*": ["./pltsxGenerated/src/*"] }
+  },
+  "include": ["pltsxGenerated/src", "vite.config.ts"]
+}
+```
+
+Na koniec wyklucz wygenerowany katalog z kontroli wersji:
+
+```gitignore
+/pltsxGenerated/
+```
+
+Starter w [`examples/react-vite/`](examples/react-vite/) zawiera kompletną, działającą konfigurację.
 
 ## Użycie biblioteki
 
@@ -180,7 +272,7 @@ Błędy Babel są opakowywane w `TranspileError`, a ich pozycje są mapowane prz
 - Reguły kontekstowe operatorów i słów typów są heurystyczne. Polska forma słownika użyta jako identyfikator w niejednoznacznym wyrażeniu może zostać przetłumaczona albo nie zostać przetłumaczona w oczekiwanym miejscu. Testy obejmują typowe przypadki, nie każdą poprawną składnię TS.
 - Rozpoznawanie JSX jest leksykalne i heurystyczne. Testy obejmują standardowe tagi, atrybuty, tekst i wyrażenia; rzadkie lub głęboko zagnieżdżone przypadki mogą wymagać poprawki.
 - Akceptacja przez parser Babel nie gwarantuje, że `tsc` zaakceptuje wynik lub że kod będzie typowany poprawnie. PolishTS nie uruchamia TypeScript checkera.
-- Wynik formatuje Babel. Brak obecnie zachowania formatowania źródła, source maps, watch mode, kompilacji wielu plików projektu i pluginów Vite.
+- Wynik formatuje Babel. Brak zachowania formatowania źródła, source maps, watch mode i pluginów Vite. Tryb projektowy wykonuje jednorazową translację katalogu; nie obserwuje zmian i nie sprawdza typów wygenerowanego drzewa.
 - Zakres składni TypeScript zależy od wybranej wersji parsera Babel. Adapter parsera może podmienić funkcję parsera, ale pole `version` jest tylko opisowe.
 
 ## Rozwój i weryfikacja

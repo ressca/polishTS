@@ -22,6 +22,7 @@ The implementation is not a Polish grammar parser and does not translate a TypeS
 | CLI `.plts` | Disabled unless `--tsx` | `.ts` |
 | CLI `.pltsx` | Enabled automatically | `.tsx` |
 | CLI `--tsx` | Enabled | `.tsx` by default for file input |
+| CLI `--project` | Enabled per `.pltsx` extension | Mirrors configured project inputs into `pltsxGenerated/` by default |
 
 The bundled parser is `@babel/parser` resolved by the package lock. It uses Babel's `typescript` plugin and `decorators-legacy`; TSX additionally uses `jsx`. The public `ParserAdapter` lets a caller replace the parser function. Its `version` property is informational; the implementation does not enforce a TypeScript grammar version or configure TypeScript compiler options.
 

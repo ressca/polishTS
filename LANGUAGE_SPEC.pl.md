@@ -22,6 +22,7 @@ Implementacja nie jest parserem polskiej gramatyki ani translacją AST TypeScrip
 | CLI `.plts` | Wyłączony bez `--tsx` | `.ts` |
 | CLI `.pltsx` | Włączany automatycznie | `.tsx` |
 | CLI `--tsx` | Włączony | Domyślnie `.tsx` dla pliku |
+| CLI `--project` | Włączany dla plików `.pltsx` | Domyślnie kopiuje skonfigurowane drzewo projektu do `pltsxGenerated/` |
 
 Domyślnym parserem jest `@babel/parser` rozwiązany przez lockfile pakietu. Używane są pluginy Babel `typescript` i `decorators-legacy`; TSX dodatkowo używa `jsx`. Publiczny `ParserAdapter` pozwala podmienić funkcję parsera. Pole `version` jest informacyjne — implementacja nie wymusza wersji gramatyki TypeScript ani nie ustawia opcji kompilatora.
 
